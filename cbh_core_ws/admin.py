@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django.contrib import admin
-from cbh_core_model.models import Project, PinnedCustomField, CustomFieldConfig, SkinningConfig, ProjectType
+from cbh_core_model.models import Project, PinnedCustomField, CustomFieldConfig, SkinningConfig, ProjectType, DataFormConfig
 
 from django.contrib.admin import ModelAdmin
 
@@ -23,6 +23,11 @@ class GrappelliSortableHiddenMixin(object):
         if db_field.name == self.sortable_field_name:
             kwargs["widget"] = HiddenInput()
         return super(GrappelliSortableHiddenMixin, self).formfield_for_dbfield(db_field, **kwargs)
+
+
+
+class DataFormConfigAdmin(ModelAdmin):
+    pass
 
 
 class PinnedCustomFieldInline( GrappelliSortableHiddenMixin, admin.TabularInline, ): #GrappelliSortableHiddenMixin
@@ -122,3 +127,4 @@ admin.site.register(CustomFieldConfig, CustomFieldConfigAdmin)
 admin.site.register(Project, ProjectAdmin)
 admin.site.register(ProjectType, ProjectTypeAdmin)
 admin.site.register(SkinningConfig, SingletonModelAdmin)
+admin.site.register(DataFormConfig, DataFormConfigAdmin)

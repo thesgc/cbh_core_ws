@@ -8,7 +8,7 @@ from itertools import chain
 from tastypie import fields
 
 
-from cbh_core_model.models import Project, ProjectType, CustomFieldConfig, PinnedCustomField, SkinningConfig
+from cbh_core_model.models import Project, ProjectType, CustomFieldConfig, PinnedCustomField, SkinningConfig, DataType
 
 from cbh_core_ws.authorization import ProjectAuthorization, ProjectListAuthorization
 from tastypie.serializers import Serializer
@@ -89,6 +89,16 @@ import json
 
 
 from django.views.generic import TemplateView
+
+
+def get_field_name_from_key(key):
+    return key.replace(u"__space__", u" ")
+
+def get_key_from_field_name(name):
+    return name.replace(u" ", u"__space__")
+
+
+
 
 class Index(TemplateView):
 
@@ -249,9 +259,28 @@ class CustomFieldConfigResource(ModelResource):
         }
 
 
+
+class DataTypeResource(ModelResource):
+    '''Resource for data types'''
+    class Meta:
+        always_return_data = True
+        queryset = DataType.objects.all()
+        resource_name = 'cbh_data_types'
+        #authorization = ProjectListAuthorization()
+        include_resource_uri = False
+        allowed_methods = ['get', 'post', 'put']
+        default_format = 'application/json'
+        authentication = SessionAuthentication()
+        filtering = {
+            "name": ALL_WITH_RELATIONS
+        }
+    
+    
+
+
 class CoreProjectResource(ModelResource):
     project_type = fields.ForeignKey(ProjectTypeResource, 'project_type', blank=False, null=False, full=True)
-    custom_field_config = fields.ForeignKey(CustomFieldConfigResource, 'custom_field_config', blank=False, null=False, full=True)
+    custom_field_config = fields.ForeignKey(CustomFieldConfigResource, 'custom_field_config', blank=False, null=True, full=True)
     class Meta:
         queryset = Project.objects.all()
         authentication = SessionAuthentication()
