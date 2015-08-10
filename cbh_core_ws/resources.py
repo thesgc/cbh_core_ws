@@ -274,7 +274,8 @@ class DataTypeResource(ModelResource):
         filtering = {
             "name": ALL_WITH_RELATIONS
         }
-    
+        authorization = Authorization()
+
     
 
 
