@@ -87,6 +87,40 @@ class ProjectListAuthorization(Authorization):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class ProjectAuthorization(Authorization):
     """
     Uses permission checking from ``django.contrib.auth`` to map
