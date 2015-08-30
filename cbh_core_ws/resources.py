@@ -85,7 +85,7 @@ from django.contrib.auth import get_user_model
 
 import re
 import json
-
+import inflection
 
 
 from django.views.generic import TemplateView
@@ -262,6 +262,7 @@ class CustomFieldConfigResource(ModelResource):
 
 class DataTypeResource(ModelResource):
     '''Resource for data types'''
+    plural = fields.CharField(null=True)
     class Meta:
         always_return_data = True
         queryset = DataType.objects.all()
@@ -275,6 +276,10 @@ class DataTypeResource(ModelResource):
             "name": ALL_WITH_RELATIONS
         }
         authorization = Authorization()
+
+    def dehydrate_plural(self, bundle):
+        return inflection.pluralize(bundle.obj.name)
+
 
     
 
