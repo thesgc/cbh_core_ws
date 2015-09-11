@@ -27,7 +27,15 @@ class GrappelliSortableHiddenMixin(object):
 
 
 class DataFormConfigAdmin(ModelAdmin):
-    pass
+    exclude= ["created_by", "parent"]
+    # def get_queryset(self, request):
+    #     qs = super(DataFormConfigAdmin, self).get_queryset(request)
+    #     return qs.filter(human_added=True)
+
+
+    def save_model(self, request, obj, form, change): 
+        obj.save()
+        obj.get_all_ancestor_objects(request)
 
 
 class PinnedCustomFieldInline( GrappelliSortableHiddenMixin, admin.TabularInline, ): #GrappelliSortableHiddenMixin
