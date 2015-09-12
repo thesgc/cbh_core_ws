@@ -35,7 +35,7 @@ class DataFormConfigAdmin(ModelAdmin):
 
     def save_model(self, request, obj, form, change): 
         obj.save()
-        obj.get_all_ancestor_objects(request)
+        obj.get_all_ancestor_objects(request, create=True)
 
 
 class PinnedCustomFieldInline( GrappelliSortableHiddenMixin, admin.TabularInline, ): #GrappelliSortableHiddenMixin
@@ -125,6 +125,15 @@ class ProjectAdmin(ModelAdmin):
     def save_model(self, request, obj, form, change): 
         obj.created_by = request.user
         obj.save()
+
+        # if project.project_type.name == "Assay":
+        #     cfc_ids = [dfc.l0_id for dfc in project.enabled_forms.all()]
+        #     cfc_ids = list(set(cfc_ids))
+        #     if len(cfc_ids) == 1:
+        #         #We have a single l0 datapoint therefore configure the first data point classification
+        #         root_dfc = DataFormConfig.objects.get(l0_id=cfc_ids[0])
+        #         DataPointClassification.objects.get(l0_id=cfc_ids[0], l1_id=None, l2_id=None, l3_id=None, l4_id=None)
+
 
 
 
