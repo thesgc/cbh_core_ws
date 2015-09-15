@@ -38,15 +38,38 @@ class DataFormConfigAdmin(ModelAdmin):
         obj.get_all_ancestor_objects(request, create=True)
 
 
+
+
+
+class PinnedCustomFieldAdmin(ModelAdmin):
+    list_display = ["name", 
+                    "description" ,
+                    "field_type",
+                    "allowed_values","pinned_for_datatype"]
+
+    
+    exclude = ["field_key", "standardised_alias", "custom_field_config","part_of_blinded_key", "position"]
+    def get_queryset(self, request):
+        qs = super(PinnedCustomFieldAdmin, self).get_queryset(request)
+        return qs.filter(custom_field_config=None)
+
+    def save_model(self, request, obj, form, change): 
+        obj.position = 0
+        obj.save()
+
+
 class PinnedCustomFieldInline( GrappelliSortableHiddenMixin, admin.TabularInline, ): #GrappelliSortableHiddenMixin
     model = PinnedCustomField
-    exclude = ["field_key"]
-
+    exclude = ["field_key", "pinned_for_datatype"]
+  
     sortable_field_name = "position"
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size':'20'})},
     }
     extra = 3
+
+    
+
     def get_extra (self, request, obj=None, **kwargs):
         """Dynamically sets the number of extra forms. 0 if the related object
         already exists or the extra configuration otherwise."""
@@ -145,3 +168,4 @@ admin.site.register(Project, ProjectAdmin)
 admin.site.register(ProjectType, ProjectTypeAdmin)
 admin.site.register(SkinningConfig, SingletonModelAdmin)
 admin.site.register(DataFormConfig, DataFormConfigAdmin)
+admin.site.register(PinnedCustomField, PinnedCustomFieldAdmin)
