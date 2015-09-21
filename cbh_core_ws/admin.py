@@ -45,7 +45,7 @@ class PinnedCustomFieldAdmin(ModelAdmin):
     list_display = ["name", 
                     "description" ,
                     "field_type",
-                    "allowed_values","pinned_for_datatype"]
+                    "allowed_values","pinned_for_datatype", "field_key"]
 
     
     exclude = ["field_key", "standardised_alias", "custom_field_config","part_of_blinded_key", "position"]
