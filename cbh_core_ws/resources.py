@@ -315,6 +315,22 @@ class CoreProjectResource(ModelResource):
         userbundle = userres.full_dehydrate(userbundle)
         bundle['user'] = userbundle.data
 
+
+
+    def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
+        """
+        Extracts the common "which-format/serialize/return-response" cycle.
+        Mostly a useful shortcut/hook.
+        """
+
+        desired_format = self.determine_format(request)
+        serialized = self.serialize(request, data, desired_format)
+        rc = response_class(content=serialized, content_type=build_content_type(desired_format), **response_kwargs)
+
+        if(desired_format == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'):
+            rc['Content-Disposition'] = 'attachment; filename=project_data_explanation.xlsx'
+        return rc
+
     #     editor_projects = self._meta.authorization.editor_projects(request)
     #     for bun in bundle["objects"]:
     #         bun.data["editor"] = bun.obj.id in editor_projects

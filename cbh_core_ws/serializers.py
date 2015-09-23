@@ -37,15 +37,25 @@ def get_key_from_field_name(name):
 
 class CustomFieldXLSSerializer(Serializer):
     ''' COde for preparing an Excel summary of the custom fields for the given project '''
-    formats = ['json', 'jsonp', 'xls']
+    formats = ['json', 'jsonp', 'xlsx']
     content_types = {'json': 'application/json',
                      'jsonp': 'text/javascript', 
-                     'xls': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+                     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
     
-    def to_xls(self, data, options=None):
+    def to_xlsx(self, data, options=None):
         
         output = cStringIO.StringIO()
-        exp_json = data.get('custom_field_config')
+        try:
+            print data
+            exp_json = data.get('custom_field_config', None)
+        except AttributeError:
+            exp_json = None
+
+        if  exp_json is None:
+
+                exp_json = data.data["project_data_fields"]
+                exp_json = [field.data for field in exp_json]
+            
 
         cleaned_data = []
         
@@ -69,9 +79,9 @@ class CustomFieldXLSSerializer(Serializer):
 
 
 
-        df = pd.DataFrame(exp_json, columns=['title', 'field_type', 'placeholder', 'allowed_values'])
+        df = pd.DataFrame(exp_json, columns=['name', 'field_type', 'description', 'allowed_values'])
         #human readable titles
-        df.rename(columns={'title': 'Name', 'field_type': 'Data Type', 'placeholder': 'Description', 'allowed_values': 'Allowed Values'}, inplace=True)
+        df.rename(columns={'name': 'Name', 'field_type': 'Data Type', 'description': 'Description', 'allowed_values': 'Allowed Values'}, inplace=True)
 
         #deal with empty fields
         df.fillna('', inplace=True)
@@ -92,10 +102,14 @@ class CustomFieldXLSSerializer(Serializer):
 
         writer = pd.ExcelWriter('temp.xlsx', engine='xlsxwriter')
         writer.book.filename = output
-        df.to_excel(writer, sheet_name='Sheet1', index=False)
+        df2 = pd.DataFrame(data=np.zeros((0,len(exp_json))), columns=[field["name"] for field in exp_json])
+        df2.to_excel(writer, sheet_name='Sheet1', index=False)
+
+        df.to_excel(writer, sheet_name='Sheet2', index=False)
+
         workbook = writer.book
         format = workbook.add_format()
-        worksheet = writer.sheets['Sheet1']
+        worksheet = writer.sheets['Sheet2']
         format.set_text_wrap()
         #make the UOx ID and SMILES columns bigger
         #BUG - can't set column format until pandas 0.16
@@ -106,8 +120,12 @@ class CustomFieldXLSSerializer(Serializer):
             elif width < 15:
                 width = 15
             worksheet.set_column(index ,index , width)
-        writer.save()
         
+        worksheet = writer.sheets['Sheet1']
+        for index, field in enumerate(exp_json):
+            width = len(field["name"])*1.5
+            worksheet.set_column(index ,index , width)
+        writer.save()
         return output.getvalue()
 
 
