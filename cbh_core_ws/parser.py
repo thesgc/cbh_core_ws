@@ -34,7 +34,8 @@ def get_custom_field_config(filename, sheetname):
     data["required"] = data["required"].apply(is_true)
     
     data = data.fillna('')
-    return data.T.to_dict().values()
+    mydata = [{key: unicode(value) for key, value in point.items()} for point in data.T.to_dict().values()]
+    return mydata
 
 def get_key_from_field_name(name):
     return name.replace(u" ", u"__space__")
