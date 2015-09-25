@@ -12,6 +12,16 @@ from django.db import models
 import json
 from solo.admin import SingletonModelAdmin
 
+
+
+from django import forms
+
+
+
+
+
+
+
 class GrappelliSortableHiddenMixin(object):
     """
     Mixin which hides the sortable field with Stacked and Tabular inlines.
@@ -34,9 +44,11 @@ class DataFormConfigAdmin(ModelAdmin):
 
 
     def save_model(self, request, obj, form, change): 
+        obj.created_by= request.user
         obj.save()
-        obj.get_all_ancestor_objects(request, create=True)
+        
 
+        obj.get_all_ancestor_objects(request)
 
 
 
@@ -49,6 +61,7 @@ class PinnedCustomFieldAdmin(ModelAdmin):
 
     
     exclude = ["field_key", "standardised_alias", "custom_field_config","part_of_blinded_key", "position"]
+
     def get_queryset(self, request):
         qs = super(PinnedCustomFieldAdmin, self).get_queryset(request)
         return qs.filter(custom_field_config=None)
@@ -58,15 +71,26 @@ class PinnedCustomFieldAdmin(ModelAdmin):
         obj.save()
 
 
+class PinnedCustomFieldInlineForm(forms.ModelForm):
+    standardised_alias = forms.ModelChoiceField(required=False, queryset=PinnedCustomField.objects.exclude(pinned_for_datatype=None).order_by("field_key"), empty_label="Not Mapped")
+
+    class Meta:
+        model = PinnedCustomField
+        exclude=["field_key", "pinned_for_datatype", "attachment_field_mapped_to"]
+
+
+
+
 class PinnedCustomFieldInline( GrappelliSortableHiddenMixin, admin.TabularInline, ): #GrappelliSortableHiddenMixin
     model = PinnedCustomField
-    exclude = ["field_key", "pinned_for_datatype"]
+    exclude = ["field_key", "pinned_for_datatype",  "attachment_field_mapped_to"]
   
     sortable_field_name = "position"
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size':'20'})},
     }
     extra = 3
+    form = PinnedCustomFieldInlineForm
 
     
 
@@ -99,31 +123,31 @@ class CustomFieldConfigAdmin(ModelAdmin):
     def save_model(self, request, obj, form, change): 
         obj.created_by= request.user
         obj.save()
-        if obj.pinned_custom_field.all().count() == 0 and obj.schemaform:
-            data = json.loads(form.cleaned_data["schemaform"])["form"]
-            for position, field in enumerate(data):
-                PinnedCustomField.objects.create(allowed_values=field["allowed_values"],
-                                                custom_field_config=obj,
-                                                field_type=field["field_type"],
-                                                position=field["position"],
-                                                name=field["key"],
-                                                description=field["placeholder"])
+    #     if obj.pinned_custom_field.all().count() == 0 and obj.schemaform:
+    #         data = json.loads(form.cleaned_data["schemaform"])["form"]
+    #         for position, field in enumerate(data):
+    #             PinnedCustomField.objects.create(allowed_values=field["allowed_values"],
+    #                                             custom_field_config=obj,
+    #                                             field_type=field["field_type"],
+    #                                             position=field["position"],
+    #                                             name=field["key"],
+    #                                             description=field["placeholder"])
         
                                                 
                 
 
 
-    def log_change(self, request, object, message):
-        """
-        Log that an object has been successfully changed.
-        The default implementation creates an admin LogEntry object.
-        """
-        super(CustomFieldConfigAdmin, self).log_change(request, object, message)
-        cfr = ChemregProjectResource()
-        if object.__class__.__name__ == "CustomFieldConfig":
-            schemaform = json.dumps(cfr.get_schema_form(object,"" ))
-            object.schemaform = schemaform
-            object.save()
+    # def log_change(self, request, object, message):
+    #     """
+    #     Log that an object has been successfully changed.
+    #     The default implementation creates an admin LogEntry object.
+    #     """
+    #     super(CustomFieldConfigAdmin, self).log_change(request, object, message)
+    #     cfr = ChemregProjectResource()
+    #     if object.__class__.__name__ == "CustomFieldConfig":
+    #         schemaform = json.dumps(cfr.get_schema_form(object,"" ))
+    #         object.schemaform = schemaform
+    #         object.save()
 
 
     formfield_overrides = {
