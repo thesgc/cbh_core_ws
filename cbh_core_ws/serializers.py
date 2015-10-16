@@ -163,6 +163,18 @@ class ResultsExportXLSSerializer(Serializer):
                             for sk, sv in src.iteritems():
                                 readable_sk = get_field_name_from_key(sk)
                                 col_titles[sk] = readable_sk
+                            srcl2 = item['_source']['l2']['project_data']
+                            srcl1 = item['_source']['l1']['project_data']
+                            srcl0 = item['_source']['l0']['project_data']
+                            # print(srcl2['Title'])
+
+                            src['l2'] = srcl2.get('Title', None)
+                            src['l1'] = srcl1.get('Title', None)
+                            src['l0'] = srcl0.get('Title', None)
+                            
+                            col_titles['l2'] = "Assay"
+                            col_titles['l1'] = "Study"
+                            col_titles['l0'] = "Project"
                             cleaned_data.append(src)
 
         
@@ -202,21 +214,11 @@ class ResultsExportXLSSerializer(Serializer):
         workbook = writer.book
         format = workbook.add_format()
         # worksheet = writer.sheets['Sheet2']
-        # format.set_text_wrap()
-        # #make the UOx ID and SMILES columns bigger
-        # #BUG - can't set column format until pandas 0.16
-        # #https://github.com/pydata/pandas/issues/9167
-        # for index, width in enumerate(widths):
-        #     if width > 150:
-        #         width = 150
-        #     elif width < 15:
-        #         width = 15
-        #     worksheet.set_column(index ,index , width)
+        
         
         worksheet = writer.sheets['Sheet1']
-        # for index, field in enumerate(exp_json):
-        #     width = len(field["name"])*1.5
-        #     worksheet.set_column(index ,index , width)
+        
+        #auto adjust column widths
         for index, width in enumerate(widths):
             if width > 150:
                 width = 150
