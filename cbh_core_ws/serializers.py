@@ -132,3 +132,88 @@ class CustomFieldXLSSerializer(Serializer):
 
 class CustomFieldsSerializer(CustomFieldXLSSerializer):
     pass
+
+class ResultsExportXLSSerializer(Serializer):
+    ''' COde for preparing an Excel summary of the results from a particular search query '''
+    formats = ['json', 'jsonp', 'xlsx']
+    content_types = {'json': 'application/json',
+                     'jsonp': 'text/javascript', 
+                     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+    
+    def to_xlsx(self, data, options=None):
+        
+        output = cStringIO.StringIO()
+        
+        exp_json = self.to_simple(data, {})
+        
+        cleaned_data = []
+
+        #do your stuff here
+        #maybe just get all the l3 data out? group by their l2 uri, so the columns might match up?
+        for result, val in exp_json.iteritems():
+            
+            if(result == 'hits'):
+                for k,v in val.iteritems():
+                    if (k == 'hits'):
+                        for item in v:
+                            #print json.dumps(item["_source"])
+                            src = item['_source']['l3']['project_data']
+                            for sk, sv in src.iteritems():
+                                sk = get_field_name_from_key(sk)
+                                print(sk)
+                            cleaned_data.append(src)
+
+        #field_names = []
+        #for k, v in l3.iteritems():
+        #    k = get_field_name_from_key(k)
+
+        #df = pd.DataFrame(exp_json, columns=['name', 'field_type', 'description', 'allowed_values'])
+        df = pd.DataFrame(cleaned_data)
+        #human readable titles
+        #now doing human readable titles via get_field_name_from_key
+        #df.rename(columns={'name': 'Name', 'field_type': 'Data Type', 'description': 'Description', 'allowed_values': 'Allowed Values'}, inplace=True)
+
+        #deal with empty fields
+        df.fillna('', inplace=True)
+
+        #autosize column widths setup
+        widths = []
+        for col in df.columns.tolist():
+            col = str(col)
+            titlewidth = len(col)
+            try:
+                w = df[col].astype(unicode).str.len().max()
+                if w > titlewidth:
+                    widths.append(int(w*1.2))
+                else:
+                    widths.append(int(titlewidth* 1.2))
+            except:
+                widths.append(int(titlewidth* 1.2))
+
+        writer = pd.ExcelWriter('temp.xlsx', engine='xlsxwriter')
+        writer.book.filename = output
+        #df2 = pd.DataFrame(data=np.zeros((0,len(exp_json))), columns=[field["name"] for field in exp_json])
+        #df2.to_excel(writer, sheet_name='Sheet1', index=False)
+
+        df.to_excel(writer, sheet_name='Sheet1', index=False)
+
+        workbook = writer.book
+        format = workbook.add_format()
+        # worksheet = writer.sheets['Sheet2']
+        # format.set_text_wrap()
+        # #make the UOx ID and SMILES columns bigger
+        # #BUG - can't set column format until pandas 0.16
+        # #https://github.com/pydata/pandas/issues/9167
+        # for index, width in enumerate(widths):
+        #     if width > 150:
+        #         width = 150
+        #     elif width < 15:
+        #         width = 15
+        #     worksheet.set_column(index ,index , width)
+        
+        worksheet = writer.sheets['Sheet1']
+        # for index, field in enumerate(exp_json):
+        #     width = len(field["name"])*1.5
+        #     worksheet.set_column(index ,index , width)
+        writer.save()
+        return output.getvalue()
