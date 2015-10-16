@@ -148,6 +148,8 @@ class ResultsExportXLSSerializer(Serializer):
         
         cleaned_data = []
 
+        chembl_data = []
+
         col_titles = {}
 
         #do your stuff here
@@ -175,7 +177,18 @@ class ResultsExportXLSSerializer(Serializer):
                             col_titles['l2'] = "Assay"
                             col_titles['l1'] = "Study"
                             col_titles['l0'] = "Project"
+
                             cleaned_data.append(src)
+
+                            #now chembl data!
+                            if(item['_source']['l3'].get('chembl', None)):
+                                csrc = item['_source']['l3']['chembl']
+                                #are the chembl fields stored in that format?
+                                #for sk, sv in csrc.iteritems():
+                                    #readable_sk = get_field_name_from_key(sk)
+                                    #col_titles[sk] = readable_sk
+
+                                chembl_data.append(csrc)
 
         
         #for k, v in l3.iteritems():
@@ -183,12 +196,14 @@ class ResultsExportXLSSerializer(Serializer):
 
         #df = pd.DataFrame(exp_json, columns=['name', 'field_type', 'description', 'allowed_values'])
         df = pd.DataFrame(cleaned_data)
+        
         #human readable titles
         #now doing human readable titles via get_field_name_from_key
         df.rename(columns=col_titles, inplace=True)
 
         #deal with empty fields
         df.fillna('', inplace=True)
+        
 
         #autosize column widths setup
         widths = []
@@ -210,6 +225,12 @@ class ResultsExportXLSSerializer(Serializer):
         #df2.to_excel(writer, sheet_name='Sheet1', index=False)
 
         df.to_excel(writer, sheet_name='Sheet1', index=False)
+        
+        if chembl_data:
+            cdf = pd.DataFrame(chembl_data)
+            cdf.fillna('', inplace=True)
+            cdf.to_excel(writer, sheet_name='Sheet2', index=False)
+
 
         workbook = writer.book
         format = workbook.add_format()
