@@ -148,6 +148,8 @@ class ResultsExportXLSSerializer(Serializer):
         
         cleaned_data = []
 
+        col_titles = {}
+
         #do your stuff here
         #maybe just get all the l3 data out? group by their l2 uri, so the columns might match up?
         for result, val in exp_json.iteritems():
@@ -156,14 +158,14 @@ class ResultsExportXLSSerializer(Serializer):
                 for k,v in val.iteritems():
                     if (k == 'hits'):
                         for item in v:
-                            #print json.dumps(item["_source"])
+                            
                             src = item['_source']['l3']['project_data']
                             for sk, sv in src.iteritems():
-                                sk = get_field_name_from_key(sk)
-                                print(sk)
+                                readable_sk = get_field_name_from_key(sk)
+                                col_titles[sk] = readable_sk
                             cleaned_data.append(src)
 
-        #field_names = []
+        
         #for k, v in l3.iteritems():
         #    k = get_field_name_from_key(k)
 
@@ -171,7 +173,7 @@ class ResultsExportXLSSerializer(Serializer):
         df = pd.DataFrame(cleaned_data)
         #human readable titles
         #now doing human readable titles via get_field_name_from_key
-        #df.rename(columns={'name': 'Name', 'field_type': 'Data Type', 'description': 'Description', 'allowed_values': 'Allowed Values'}, inplace=True)
+        df.rename(columns=col_titles, inplace=True)
 
         #deal with empty fields
         df.fillna('', inplace=True)
@@ -215,5 +217,11 @@ class ResultsExportXLSSerializer(Serializer):
         # for index, field in enumerate(exp_json):
         #     width = len(field["name"])*1.5
         #     worksheet.set_column(index ,index , width)
+        for index, width in enumerate(widths):
+            if width > 150:
+                width = 150
+            elif width < 15:
+                width = 15
+            worksheet.set_column(index ,index , width)
         writer.save()
         return output.getvalue()
