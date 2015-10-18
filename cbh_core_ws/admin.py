@@ -5,7 +5,6 @@ from cbh_core_model.models import Project, PinnedCustomField, CustomFieldConfig,
 
 from django.contrib.admin import ModelAdmin
 
-from cbh_chembl_ws_extension.projects import ChemregProjectResource
 
 from django.forms.widgets import HiddenInput, TextInput
 from django.db import models
