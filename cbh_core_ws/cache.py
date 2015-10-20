@@ -6,6 +6,7 @@ from tastypie.exceptions import InvalidFilterError
 
 
 class CachedResource(object):
+
     """
     CachedResource Mixin
 
@@ -38,9 +39,10 @@ class CachedResource(object):
 
     """
 
-    valid_cache_formats = ['json', 'jsonp', 'xml',]
+    valid_cache_formats = ['json', 'jsonp', 'xml', ]
     default_params = {'limit': 20}
-    content_type_dict = {'json': 'application/json', 'jsonp': 'application/javascript', 'xml': 'application/xml'}
+    content_type_dict = {'json': 'application/json', 'jsonp':
+                         'application/javascript', 'xml': 'application/xml'}
     valid_cache_get_keys = ['format', 'limit']
 
     def _prepare_params(self, params):
@@ -70,7 +72,7 @@ class CachedResource(object):
 
         TODO: Is the resource specific or can this be global for all pulse apps?
         """
-        
+
         key = ''
 
         for param_key in self.valid_cache_get_keys:
@@ -163,7 +165,7 @@ class CachedResource(object):
             if data:
                 self.is_authenticated(request)
                 self.throttle_check(request)
-                self.method_check(request, allowed = self._meta.allowed_methods)
+                self.method_check(request, allowed=self._meta.allowed_methods)
 
                 if self.is_jsonp(request):
                     data = self.wrap_json_response(request, data)

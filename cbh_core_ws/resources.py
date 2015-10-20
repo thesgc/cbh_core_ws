@@ -19,7 +19,7 @@ import copy
 import time
 import urllib
 from django.core.urlresolvers import reverse
-from cbh_core_ws.serializers import  CustomFieldsSerializer
+from cbh_core_ws.serializers import CustomFieldsSerializer
 
 from django.db.models import Prefetch
 
@@ -94,17 +94,15 @@ from django.views.generic import TemplateView
 def get_field_name_from_key(key):
     return key.replace(u"__space__", u" ")
 
+
 def get_key_from_field_name(name):
     return name.replace(u" ", u"__space__")
 
 
-
-
 class Index(TemplateView):
 
-    template_name = 'dist/index.html' # or define get_template_names()
+    template_name = 'dist/index.html'  # or define get_template_names()
 
-    
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         from django.middleware.csrf import get_token
@@ -113,27 +111,29 @@ class Index(TemplateView):
 
 
 class UserResource(ModelResource):
+
     class Meta:
         filtering = {
             "username": ALL_WITH_RELATIONS
         }
         queryset = get_user_model().objects.all()
         resource_name = 'users'
-        allowed_methods = ["get",] 
+        allowed_methods = ["get", ]
         excludes = ['email', 'password', 'is_active']
         authentication = SessionAuthentication()
         authorization = Authorization()
 
     # def apply_filters(self, request, applicable_filters):
     #     username = request.GET.get('username')
-    #     applicable_filters['username'] = 
+    #     applicable_filters['username'] =
     #     dataset = self.get_object_list(request).filter(**applicable_filters)
 
     def apply_authorization_limits(self, request, object_list):
         return object_list.get(pk=request.user.id)
 
     def get_object_list(self, request):
-        #return super(UserResource, self).get_object_list(request).filter(pk=request.user.id)
+        # return super(UserResource,
+        # self).get_object_list(request).filter(pk=request.user.id)
         return super(UserResource, self).get_object_list(request)
 
     def get_permissions():
@@ -141,50 +141,45 @@ class UserResource(ModelResource):
         pass
 
 
-
-
-
-#-----------------------------------------------------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------
 
 
 class Login(FormView):
     form_class = AuthenticationForm
     template_name = "cbh_chembl_ws_extension/login.html"
     logout = None
+
     def get(self, request, *args, **kwargs):
 
         from django.middleware.csrf import get_token
         csrf_token = get_token(request)
-        context = self.get_context_data(form=self.get_form(self.get_form_class()))
+        context = self.get_context_data(
+            form=self.get_form(self.get_form_class()))
         redirect_to = settings.LOGIN_REDIRECT_URL
         '''Borrowed from django base detail view'''
-        
-        
-        
+
         if "django_webauth" in settings.INSTALLED_APPS:
             context["webauth_login"] = True
             username = request.META.get('REMOTE_USER', None)
             if not username:
-                #Here we check if this was a redirect after logout in which case we show the button to log out of webauth entirely
+                # Here we check if this was a redirect after logout in which
+                # case we show the button to log out of webauth entirely
                 username = request.META.get('HTTP_X_WEBAUTH_USER', None)
-            if  username:
+            if username:
                 context["logout"] = True
         else:
             context["password_login"] = True
 
-
         if request.user.is_authenticated():
             return HttpResponseRedirect(redirect_to)
         return self.render_to_response(context)
-    
 
     def form_valid(self, form):
         redirect_to = settings.LOGIN_REDIRECT_URL
         auth_login(self.request, form.get_user())
         if self.request.session.test_cookie_worked():
             self.request.session.delete_test_cookie()
-        #return self.render_to_response(self.get_context_data())
+        # return self.render_to_response(self.get_context_data())
         return HttpResponseRedirect(redirect_to)
 
     def form_invalid(self, form):
@@ -194,16 +189,12 @@ class Login(FormView):
     #     request.session.set_test_cookie()
     #     return super(Login, self).dispatch(request, *args, **kwargs)
 
+
 class Logout(View):
+
     def get(self, request, *args, **kwargs):
         auth_logout(request)
         return HttpResponseRedirect(settings.LOGOUT_REDIRECT_URL)
-
-
-
-
-
-
 
 
 def build_content_type(format, encoding='utf-8'):
@@ -217,6 +208,7 @@ def build_content_type(format, encoding='utf-8'):
 
 
 class SkinningResource(ModelResource):
+
     '''URL resourcing for pulling out sitewide skinning config '''
     class Meta:
         always_return_data = True
@@ -242,6 +234,7 @@ class ProjectTypeResource(ModelResource):
         default_format = 'application/json'
         authentication = SessionAuthentication()
 
+
 class CustomFieldConfigResource(ModelResource):
 
     '''Resource for Custom Field Config '''
@@ -259,10 +252,11 @@ class CustomFieldConfigResource(ModelResource):
         }
 
 
-
 class DataTypeResource(ModelResource):
+
     '''Resource for data types'''
     plural = fields.CharField(null=True)
+
     class Meta:
         always_return_data = True
         queryset = DataType.objects.all()
@@ -281,17 +275,17 @@ class DataTypeResource(ModelResource):
         return inflection.pluralize(bundle.obj.name)
 
 
-    
-
-
 class CoreProjectResource(ModelResource):
-    project_type = fields.ForeignKey(ProjectTypeResource, 'project_type', blank=False, null=False, full=True)
-    custom_field_config = fields.ForeignKey(CustomFieldConfigResource, 'custom_field_config', blank=False, null=True, full=True)
+    project_type = fields.ForeignKey(
+        ProjectTypeResource, 'project_type', blank=False, null=False, full=True)
+    custom_field_config = fields.ForeignKey(
+        CustomFieldConfigResource, 'custom_field_config', blank=False, null=True, full=True)
+
     class Meta:
         queryset = Project.objects.all()
         authentication = SessionAuthentication()
         paginator_class = Paginator
-        allowed_methods = ['get']        
+        allowed_methods = ['get']
         resource_name = 'cbh_projects'
         authorization = ProjectListAuthorization()
         include_resource_uri = False
@@ -299,13 +293,12 @@ class CoreProjectResource(ModelResource):
         #serializer = Serializer()
         serializer = CustomFieldsSerializer()
         filtering = {
-            
+
             "project_key": ALL_WITH_RELATIONS,
         }
 
     def get_object_list(self, request):
         return super(CoreProjectResource, self).get_object_list(request).prefetch_related(Prefetch("project_type")).order_by('-modified')
-
 
     def alter_list_data_to_serialize(self, request, bundle):
         '''Here we append a list of tags to the data of the GET request if the
@@ -315,8 +308,6 @@ class CoreProjectResource(ModelResource):
         userbundle = userres.full_dehydrate(userbundle)
         bundle['user'] = userbundle.data
 
-
-
     def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
         """
         Extracts the common "which-format/serialize/return-response" cycle.
@@ -325,7 +316,8 @@ class CoreProjectResource(ModelResource):
 
         desired_format = self.determine_format(request)
         serialized = self.serialize(request, data, desired_format)
-        rc = response_class(content=serialized, content_type=build_content_type(desired_format), **response_kwargs)
+        rc = response_class(content=serialized, content_type=build_content_type(
+            desired_format), **response_kwargs)
 
         if(desired_format == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'):
             rc['Content-Disposition'] = 'attachment; filename=project_data_explanation.xlsx'
@@ -340,25 +332,22 @@ class CoreProjectResource(ModelResource):
     #         searchfield_items = []
 
     #         for bun in bundle["objects"]:
-    #             schemaform = self.get_schema_form(bun.obj.custom_field_config, 
+    #             schemaform = self.get_schema_form(bun.obj.custom_field_config,
     #                 bun.obj.project_key,
-    #                 searchfield_items=searchfield_items, 
+    #                 searchfield_items=searchfield_items,
     #                 searchfields=searchfields,)
     #             bun.data["schemaform"] = schemaform
     #             bun.data["editor"] = bun.obj.id in editor_projects
 
+    # if(self.determine_format(request) ==
+    # 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or
+    # request.GET.get("format") == "xls"  ):
 
-
-    #     if(self.determine_format(request) == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or request.GET.get("format") == "xls"  ):
-            
     #         cfr_string = self.get_object_list(request).filter(id=request.GET.get("project_key"))[0].custom_field_config.schemaform
     #         cfr_json = json.loads(cfr_string)
     #         bundle['custom_field_config'] = cfr_json['form']
 
     #     return bundle
-
-
-
 
     # def get_schema_form(self, custom_field_config, project_key, searchfield_items=[], searchfields=set([]),):
     #     fields = []
@@ -380,15 +369,12 @@ class CoreProjectResource(ModelResource):
     #         }
     #     return schemaform
 
-
-
     # def get_field_values(self,  obj, projectKey):
     #     data =  copy.deepcopy(obj.FIELD_TYPE_CHOICES[obj.field_type]["data"])
 
     #     data["title"] = obj.name
     #     data["placeholder"] = obj.description
     #     data["friendly_field_type"] = obj.FIELD_TYPE_CHOICES[obj.field_type]["name"]
-
 
     #     form = {}
     #     form["field_type"] = obj.field_type
@@ -400,7 +386,7 @@ class CoreProjectResource(ModelResource):
     #     form["part_of_blinded_key"] = obj.part_of_blinded_key
     #     searchitems = []
     #     if obj.UISELECT in data.get("format", ""):
-    #         allowed_items = obj.get_allowed_items(projectKey) 
+    #         allowed_items = obj.get_allowed_items(projectKey)
     #         data["items"] = allowed_items[0]
     #         searchitems = allowed_items[1]
     #         #if we have a uiselect field with no description, make the placeholder say "Choose..."
@@ -414,8 +400,6 @@ class CoreProjectResource(ModelResource):
     #     else:
     #         allowed_items = obj.get_allowed_items(projectKey)
     #         searchitems = allowed_items[1]
-        
-
 
     #     maxdate = time.strftime("%Y-%m-%d")
     #     if data.get("format", False) == obj.DATE:
@@ -425,7 +409,7 @@ class CoreProjectResource(ModelResource):
     #             'type': 'datepicker',
     #             "format": "yyyy-mm-dd",
     #             'pickadate': {
-    #               'selectYears': True, 
+    #               'selectYears': True,
     #               'selectMonths': True,
     #             },
     #         })
@@ -436,7 +420,6 @@ class CoreProjectResource(ModelResource):
     #             if stuff:
     #                 form[item] = stuff
     #     return (obj.name, data, obj.required, form, searchitems)
-
 
     # def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
     #     """
@@ -451,5 +434,3 @@ class CoreProjectResource(ModelResource):
     #     if(desired_format == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'):
     #         rc['Content-Disposition'] = 'attachment; filename=project_data_explanation.xlsx'
     #     return rc
-
-

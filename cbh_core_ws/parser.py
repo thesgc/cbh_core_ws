@@ -12,11 +12,10 @@ def get_widths(df):
             if w > titlewidth:
                 widths.append(int(w*1.2))
             else:
-                widths.append(int(titlewidth* 1.2))
+                widths.append(int(titlewidth * 1.2))
         except:
-            widths.append(int(titlewidth* 1.2))
+            widths.append(int(titlewidth * 1.2))
     return widths
-
 
 
 def is_true(item):
@@ -32,13 +31,15 @@ def get_custom_field_config(filename, sheetname):
     data = xls.parse(sheetname, index_col=None, na_values=[''])
     data.columns = ["name", "required", "description"]
     data["required"] = data["required"].apply(is_true)
-    
+
     data = data.fillna('')
     mydata = [{key: unicode(value) for key, value in point.items()} for point in data.T.to_dict().values()]
     return mydata
 
+
 def get_key_from_field_name(name):
     return name.replace(u" ", u"__space__")
+
 
 def get_sheetnames(filename):
     import xlrd
