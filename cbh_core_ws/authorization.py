@@ -1,5 +1,5 @@
 from tastypie.authorization import Authorization
-from tastypie.exceptions import TastypieError, Unauthorized
+from tastypie.exceptions import Unauthorized
 import logging
 logger = logging.getLogger(__name__)
 logger_debug = logging.getLogger(__name__)

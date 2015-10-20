@@ -8,7 +8,6 @@ from django.contrib.admin import ModelAdmin
 
 from django.forms.widgets import HiddenInput, TextInput
 from django.db import models
-import json
 from solo.admin import SingletonModelAdmin
 
 

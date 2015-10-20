@@ -1,56 +1,34 @@
-from tastypie.resources import ModelResource, ALL, ALL_WITH_RELATIONS
+from tastypie.resources import ALL_WITH_RELATIONS
+from tastypie.resources import ModelResource
 from django.conf import settings
 from django.conf.urls import *
 from django.http import HttpResponse
 
-from tastypie.resources import ModelResource, Resource
-from itertools import chain
+from tastypie.resources import ModelResource
 from tastypie import fields
 
 
-from cbh_core_model.models import Project, ProjectType, CustomFieldConfig, PinnedCustomField, SkinningConfig, DataType
+from cbh_core_model.models import CustomFieldConfig
+from cbh_core_model.models import DataType
+from cbh_core_model.models import Project
+from cbh_core_model.models import ProjectType
+from cbh_core_model.models import SkinningConfig
 
-from cbh_core_ws.authorization import ProjectAuthorization, ProjectListAuthorization
-from tastypie.serializers import Serializer
+from cbh_core_ws.authorization import ProjectListAuthorization
 from tastypie.authentication import SessionAuthentication
 from tastypie.paginator import Paginator
-import json
-import copy
-import time
-import urllib
-from django.core.urlresolvers import reverse
 from cbh_core_ws.serializers import CustomFieldsSerializer
 
 from django.db.models import Prefetch
 
 
-from tastypie.resources import Resource, ALL, ALL_WITH_RELATIONS
-from tastypie.serializers import Serializer
-from tastypie.serializers import XML_ENCODING
-from tastypie.api import Api
-from tastypie.exceptions import ImmediateHttpResponse
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from tastypie import http
-from chembl_core_db.utils import plural
-from tastypie.exceptions import UnsupportedFormat
-from tastypie.exceptions import BadRequest
-from StringIO import StringIO
-from django.core.exceptions import ImproperlyConfigured
-import mimeparse
+from tastypie.resources import ALL_WITH_RELATIONS
 from tastypie.utils.mime import build_content_type
-import simplejson
-from django.utils import six
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.conf import settings
 
-import time
-import logging
-import django
-import urlparse
 from django.conf import settings
-from django.http import HttpResponseNotFound
-from tastypie.exceptions import NotFound
 from django.views.generic import FormView, View
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login as auth_login, logout as auth_logout
@@ -66,9 +44,6 @@ except ImportError:
 
 try:
     import defusedxml.lxml as lxml
-    from defusedxml.common import DefusedXmlException
-    from defusedxml.lxml import parse as parse_xml
-    from lxml.etree import Element, tostring, LxmlError, XMLParser
 except ImportError:
     lxml = None
 
@@ -80,11 +55,8 @@ except AttributeError:
 
 from tastypie.authentication import SessionAuthentication
 
-from tastypie.serializers import Serializer
 from django.contrib.auth import get_user_model
 
-import re
-import json
 import inflection
 
 
@@ -138,7 +110,6 @@ class UserResource(ModelResource):
 
     def get_permissions():
         """Placeholder for permissions service"""
-        pass
 
 
 #-------------------------------------------------------------------------

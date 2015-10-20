@@ -2,7 +2,6 @@ from django.core.cache import cache
 from django.http import HttpResponse
 from django.conf import settings
 
-from tastypie.exceptions import InvalidFilterError
 
 
 class CachedResource(object):

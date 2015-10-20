@@ -1,28 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import codecs
-import csv
 import cStringIO
 
-from django.conf import settings
-from django.http import Http404, HttpResponse
-from django.template import Context
-from django.template.loader import get_template
-from django.utils import timezone
 from tastypie.serializers import Serializer
 
-import re
-import json
-import xlsxwriter
-import os
-import xlrd
 import pandas as pd
 import numpy as np
 
 
-import pybel
 
-import copy
 
 
 def get_field_name_from_key(key):

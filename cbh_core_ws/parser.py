@@ -1,5 +1,4 @@
 
-from copy import deepcopy
 
 
 def get_widths(df):
