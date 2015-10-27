@@ -1,7 +1,7 @@
 
 from pandas import ExcelFile
 import xlrd
-
+from copy import copy
 def get_widths(df):
     widths = []
     for col in df.columns.tolist():
@@ -53,6 +53,9 @@ def get_sheet(filename, sheetname):
     orig_cols = tuple(data.columns)
     replace = [get_key_from_field_name(column) for column in data.columns]
     data.columns = replace
-    return (data.T.to_dict().values(), orig_cols, data.dtypes, get_widths(data))
+    types = copy(data.dtypes)
+    for col in replace:
+        data[col] = data[col].astype(unicode)
+    return (data.T.to_dict().values(), orig_cols, types, get_widths(data))
 
 
