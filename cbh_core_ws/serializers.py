@@ -7,9 +7,8 @@ from tastypie.serializers import Serializer
 import pandas as pd
 import numpy as np
 
-
-
-
+from tastypie.exceptions import ImmediateHttpResponse, BadRequest
+import json
 
 def get_field_name_from_key(key):
     return key.replace(u"__space__", u" ")
@@ -28,10 +27,14 @@ class CustomFieldXLSSerializer(Serializer):
                      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
 
     def to_xlsx(self, data, options=None):
+        try:
+            if data.data.get("traceback", False):
+                raise ImmediateHttpResponse(BadRequest(json.dumps(data.data)))
+        except AttributeError:
+            pass
 
         output = cStringIO.StringIO()
         try:
-            print data
             exp_json = data.get('custom_field_config', None)
         except AttributeError:
             exp_json = None
@@ -136,6 +139,8 @@ class ResultsExportXLSSerializer(Serializer):
 
         exp_json = self.to_simple(data, {})
 
+        if exp_json.get("traceback", False):
+            raise ImmediateHttpResponse(json.dumps(exp_json))
         cleaned_data = []
 
         chembl_data = []
