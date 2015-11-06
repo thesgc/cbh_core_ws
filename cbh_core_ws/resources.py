@@ -83,6 +83,8 @@ class Index(TemplateView):
 
 
 class UserResource(ModelResource):
+    can_view_chemreg = fields.BooleanField(default=True)
+    can_view_assayreg = fields.BooleanField(default=True)
 
     class Meta:
         filtering = {
@@ -95,10 +97,6 @@ class UserResource(ModelResource):
         authentication = SessionAuthentication()
         authorization = Authorization()
 
-    # def apply_filters(self, request, applicable_filters):
-    #     username = request.GET.get('username')
-    #     applicable_filters['username'] =
-    #     dataset = self.get_object_list(request).filter(**applicable_filters)
 
     def apply_authorization_limits(self, request, object_list):
         return object_list.get(pk=request.user.id)
@@ -111,6 +109,21 @@ class UserResource(ModelResource):
     def get_permissions():
         """Placeholder for permissions service"""
 
+    def dehydrate_can_view_chemreg(self, bundle):
+        if bundle.obj.is_superuser:
+            return True
+        perms = bundle.obj.get_all_permissions()
+        if "_can_see.no_chemreg" in perms:
+            return False
+        return True
+
+    def dehydrate_can_view_assayreg(self, bundle):
+        if bundle.obj.is_superuser:
+            return True
+        perms = bundle.obj.get_all_permissions()
+        if "_can_see.no_assayreg" in perms:
+            return False
+        return True
 
 #-------------------------------------------------------------------------
 
