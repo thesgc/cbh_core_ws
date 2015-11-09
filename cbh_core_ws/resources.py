@@ -58,6 +58,7 @@ from tastypie.authentication import SessionAuthentication
 from django.contrib.auth import get_user_model
 
 import inflection
+import six
 
 
 from django.views.generic import TemplateView
@@ -69,6 +70,143 @@ def get_field_name_from_key(key):
 
 def get_key_from_field_name(name):
     return name.replace(u" ", u"__space__")
+
+
+
+
+class SimpleResourceURIField(fields.ApiField):
+
+    """
+    Provide just the id field as a resource URI
+    """
+    dehydrated_type = 'string'
+    is_related = False
+    self_referential = False
+    help_text = 'A related resource. Can be either a URI or set of nested resource data.'
+
+    def __init__(self, to, attribute, full=False, related_name=None, default=fields.NOT_PROVIDED, null=False, blank=False, readonly=False,  unique=False, help_text=None, use_in='all', verbose_name=None):
+        """
+
+        """
+        super(SimpleResourceURIField, self).__init__(attribute=attribute, default=default, null=null, blank=blank,
+                                                     readonly=readonly, unique=unique, help_text=help_text, use_in=use_in, verbose_name=verbose_name)
+        self.related_name = related_name
+        self.to = to
+        self._to_class = None
+        self._rel_resources = {}
+
+        self.api_name = None
+        self.resource_name = None
+
+        if self.to == 'self':
+            self.self_referential = True
+
+
+
+    def contribute_to_class(self, cls, name):
+        super(SimpleResourceURIField, self).contribute_to_class(cls, name)
+
+        # Check if we're self-referential and hook it up.
+        # We can't do this quite like Django because there's no ``AppCache``
+        # here (which I think we should avoid as long as possible).
+        if self.self_referential or self.to == 'self':
+            self._to_class = cls
+
+    def convert(self, value):
+        """
+        Handles conversion between the data found and the type of the field.
+        Extending classes should override this method and provide correct
+        data coercion.
+        """
+        if value is None:
+            return None
+        cls = self.to_class()
+        resource_uri = cls.get_resource_uri()
+        return "%s/%d" % (resource_uri, value)
+
+    def hydrate(self, bundle):
+        """
+        Takes data stored in the bundle for the field and returns it. Used for
+        taking simple data and building a instance object.
+        """
+        if self.readonly:
+            return None
+        if self.instance_name not in bundle.data:
+            if self.is_related and not self.is_m2m:
+                # We've got an FK (or alike field) & a possible parent object.
+                # Check for it.
+                if bundle.related_obj and bundle.related_name in (self.attribute, self.instance_name):
+                    return bundle.related_obj
+            if self.blank:
+                return None
+            if self.attribute:
+                try:
+                    val = getattr(bundle.obj, self.attribute, None)
+
+                    if val is not None:
+                        return val
+                except ObjectDoesNotExist:
+                    pass
+            if self.instance_name:
+                try:
+                    if hasattr(bundle.obj, self.instance_name):
+                        return getattr(bundle.obj, self.instance_name)
+                except ObjectDoesNotExist:
+                    pass
+            if self.has_default():
+                if callable(self._default):
+                    return self._default()
+
+                return self._default
+            if self.null:
+                return None
+
+            raise ApiFieldError(
+                "The '%s' field has no data and doesn't allow a default or null value." % self.instance_name)
+        # New code to rerturn URI
+        value = bundle.data[self.instance_name]
+        if value is None:
+            return value
+        if str(value).endswith("/"):
+            value = value[:-1]
+        data = str(value).split("/")
+        
+        return int(data[len(data) - 1])
+        
+    @property
+    def to_class(self):
+        # We need to be lazy here, because when the metaclass constructs the
+        # Resources, other classes may not exist yet.
+        # That said, memoize this so we never have to relookup/reimport.
+        if self._to_class:
+            return self._to_class
+
+        if not isinstance(self.to, six.string_types):
+            self._to_class = self.to
+            return self._to_class
+
+        # It's a string. Let's figure it out.
+        if '.' in self.to:
+            # Try to import.
+            module_bits = self.to.split('.')
+            module_path, class_name = '.'.join(
+                module_bits[:-1]), module_bits[-1]
+            module = importlib.import_module(module_path)
+        else:
+            # We've got a bare class name here, which won't work (No AppCache
+            # to rely on). Try to throw a useful error.
+            raise ImportError(
+                "Tastypie requires a Python-style path (<module.module.Class>) to lazy load related resources. Only given '%s'." % self.to)
+
+        self._to_class = getattr(module, class_name, None)
+
+        if self._to_class is None:
+            raise ImportError("Module '%s' does not appear to have a class called '%s'." % (
+                module_path, class_name))
+
+        return self._to_class
+
+
 
 
 class Index(TemplateView):
