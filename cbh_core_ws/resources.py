@@ -83,6 +83,7 @@ class Index(TemplateView):
 
 
 class UserResource(ModelResource):
+    '''Displays information about the User's privileges and personal data'''
     can_view_chemreg = fields.BooleanField(default=True)
     can_view_assayreg = fields.BooleanField(default=True)
 
@@ -110,6 +111,9 @@ class UserResource(ModelResource):
         """Placeholder for permissions service"""
 
     def dehydrate_can_view_chemreg(self, bundle):
+        '''The _can_see.no_chemreg role in the Django admin is used to
+        deny access to chemreg. As superusers have all permissions  by 
+        default they would be denied access therefore we check for superuser status and allow access'''
         if bundle.obj.is_superuser:
             return True
         perms = bundle.obj.get_all_permissions()
@@ -118,6 +122,10 @@ class UserResource(ModelResource):
         return True
 
     def dehydrate_can_view_assayreg(self, bundle):
+        '''The _can_see.no_assayreg role in the Django admin is used to
+        deny access to assayreg. As superusers have all permissions  by 
+        default they would be denied access therefore we check for superuser status and allow access'''
+
         if bundle.obj.is_superuser:
             return True
         perms = bundle.obj.get_all_permissions()
