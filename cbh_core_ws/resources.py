@@ -323,7 +323,7 @@ class Login(FormView, CSRFExemptMixin):
         csrf_token = get_token(request)
         if request.user.is_authenticated():
             return HttpResponseRedirect(redirect_to)
-        form = self.get_form()
+        form = self.get_form(self.get_form_class())
         if form.is_valid():
             return self.form_valid(form)
         else:
