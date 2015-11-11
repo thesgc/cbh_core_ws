@@ -62,7 +62,12 @@ import six
 import importlib
 
 from django.views.generic import TemplateView
+from django.views.decorators.csrf import csrf_exempt
 
+class CSRFExemptMixin(object):
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super(CSRFExemptMixin, self).dispatch(*args, **kwargs)
 
 def get_field_name_from_key(key):
     return key.replace(u"__space__", u" ")
@@ -72,6 +77,7 @@ def get_key_from_field_name(name):
     return name.replace(u" ", u"__space__")
 
 
+from django.middleware.csrf import get_token
 
 
 class SimpleResourceURIField(fields.ApiField):
@@ -274,7 +280,7 @@ class UserResource(ModelResource):
 #-------------------------------------------------------------------------
 
 
-class Login(FormView):
+class Login(FormView, CSRFExemptMixin):
     form_class = AuthenticationForm
     template_name = "cbh_chembl_ws_extension/login.html"
     logout = None
@@ -304,8 +310,29 @@ class Login(FormView):
             return HttpResponseRedirect(redirect_to)
         return self.render_to_response(context)
 
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests, instantiating a form instance with the passed
+        POST variables and then checked for validity.
+        """
+        redirect_to = settings.LOGIN_REDIRECT_URL
+        '''Borrowed from django base detail view'''
+        from django.middleware.csrf import get_token
+        csrf_token = get_token(request)
+        if request.user.is_authenticated():
+            return HttpResponseRedirect(redirect_to)
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+
+
     def form_valid(self, form):
         redirect_to = settings.LOGIN_REDIRECT_URL
+
         auth_login(self.request, form.get_user())
         if self.request.session.test_cookie_worked():
             self.request.session.delete_test_cookie()
