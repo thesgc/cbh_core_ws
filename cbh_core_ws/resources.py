@@ -322,6 +322,7 @@ class Login( CSRFExemptMixin, FormView):
         from django.middleware.csrf import get_token
         csrf_token = get_token(request)
         if request.user.is_authenticated():
+            #The user has pressed back in their browser and therefore should be redirected
             return HttpResponseRedirect(redirect_to)
         form = self.get_form(self.get_form_class())
         if form.is_valid():
