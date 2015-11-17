@@ -281,7 +281,7 @@ class UserResource(ModelResource):
 #-------------------------------------------------------------------------
 
 
-class Login(FormView, CSRFExemptMixin):
+class Login( CSRFExemptMixin, FormView):
     form_class = AuthenticationForm
     template_name = "cbh_chembl_ws_extension/login.html"
     logout = None
