@@ -91,12 +91,12 @@ class SimpleResourceURIField(fields.ApiField):
     self_referential = False
     help_text = 'A related resource. Can be either a URI or set of nested resource data.'
 
-    def __init__(self, to, attribute, full=False, related_name=None, default=fields.NOT_PROVIDED, null=False, blank=False, readonly=False,  unique=False, help_text=None, use_in='all', verbose_name=None):
+    def __init__(self, to, attribute, full=False, related_name=None, default=fields.NOT_PROVIDED, null=False, blank=False, readonly=False,  unique=False, help_text=None, use_in='all'):
         """
 
         """
         super(SimpleResourceURIField, self).__init__(attribute=attribute, default=default, null=null, blank=blank,
-                                                     readonly=readonly, unique=unique, help_text=help_text, use_in=use_in, verbose_name=verbose_name)
+                                                     readonly=readonly, unique=unique, help_text=help_text, use_in=use_in)
         self.related_name = related_name
         self.to = to
         self._to_class = None
