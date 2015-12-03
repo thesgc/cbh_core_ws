@@ -13,6 +13,7 @@ from cbh_core_model.models import DataType
 from cbh_core_model.models import Project
 from cbh_core_model.models import ProjectType
 from cbh_core_model.models import SkinningConfig
+from cbh_core_model.models import Invitation
 
 from cbh_core_ws.authorization import ProjectListAuthorization
 from tastypie.authentication import SessionAuthentication
@@ -238,7 +239,7 @@ class UserResource(ModelResource):
         }
         queryset = get_user_model().objects.all()
         resource_name = 'users'
-        allowed_methods = ["get", ]
+        allowed_methods = ["get", "post"]
         excludes = ['email', 'password', 'is_active']
         authentication = SessionAuthentication()
         authorization = Authorization()
@@ -254,6 +255,15 @@ class UserResource(ModelResource):
 
     def get_permissions():
         """Placeholder for permissions service"""
+
+    # def get_invite_user(self, request, **kwargs):
+    #     deserialized = self.deserialize(request, request.body, format=request.META.get(
+    #         'CONTENT_TYPE', 'application/json'))
+    #     bundle = self.build_bundle(
+    #         data=dict_strip_unicode_keys(deserialized), request=request)
+    #     print(bundle.obj)
+    #     return self.create_response(request, bundle, response_class=http.HttpAccepted)
+
 
     def dehydrate_can_view_chemreg(self, bundle):
         '''The _can_see.no_chemreg role in the Django admin is used to
@@ -432,6 +442,45 @@ class DataTypeResource(ModelResource):
 
     def dehydrate_plural(self, bundle):
         return inflection.pluralize(bundle.obj.name)
+
+class InvitationResource(ModelResource):
+    '''Resource for Invitation model. This will setup creation of the invite email and new user '''
+    class Meta:
+        queryset = Invitation.objects.all()
+        resource_name = 'invitations'
+        authorization = Authorization()
+        include_resource_uri = False
+        allowed_methods = ['get', 'post', 'put']
+        default_format = 'application/json'
+        authentication = SessionAuthentication()
+        filtering = {
+            "email": ALL_WITH_RELATIONS
+        }
+    def prepend_urls(self):
+        return [
+            url(r"^(?P<resource_name>%s)/invite_user/$" % self._meta.resource_name,
+                self.wrap_view('post_invite'), name="post_invite"),
+        ]
+
+    def post_invite(self, request, **kwargs):
+
+        deserialized = self.deserialize(request, request.body, format=request.META.get(
+            'CONTENT_TYPE', 'application/json'))
+        bundle = self.build_bundle(
+            data=dict_strip_unicode_keys(deserialized), request=request)
+        print(bundle.obj)
+
+        #create the invite object and save it
+        #email is set to unique on the Invitation model 
+        # - so if someone has already been invited you can use that invite if the projects selected have been changed
+        #create new user with the details provided - for ox.ac.uk address do an LDAP lookup to create the user (similar to new login via webauth now)
+        #override create_response to send the email itself (send_mail example for new webauth user elsewhere)
+        #email should use the password_reset model in some way to generate a url for the new user
+        #or for a ox.ac.uk address send a simple webauth link 
+
+        return self.create_response(request, bundle, response_class=http.HttpAccepted)
+
+
 
 
 class CoreProjectResource(ModelResource):
