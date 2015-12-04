@@ -1,3 +1,10 @@
+import logging
+
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
+
+
+
 from tastypie.resources import ALL_WITH_RELATIONS
 from tastypie.resources import ModelResource
 from django.conf import settings
@@ -35,6 +42,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from tastypie.resources import ModelResource
 from tastypie.authorization import Authorization
+from tastypie import http
 
 # If ``csrf_exempt`` isn't present, stub it.
 try:
@@ -445,6 +453,9 @@ class DataTypeResource(ModelResource):
 
 class InvitationResource(ModelResource):
     '''Resource for Invitation model. This will setup creation of the invite email and new user '''
+
+    created_by = fields.ForeignKey(
+        "cbh_core_ws.resources.UserResource", 'created_by')
     class Meta:
         queryset = Invitation.objects.all()
         resource_name = 'invitations'
@@ -453,32 +464,55 @@ class InvitationResource(ModelResource):
         allowed_methods = ['get', 'post', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
+        always_return_data = True
         filtering = {
             "email": ALL_WITH_RELATIONS
         }
-    def prepend_urls(self):
-        return [
-            url(r"^(?P<resource_name>%s)/invite_user/$" % self._meta.resource_name,
-                self.wrap_view('post_invite'), name="post_invite"),
-        ]
 
-    def post_invite(self, request, **kwargs):
+    def hydrate_created_by(self, bundle):
+        user = get_user_model().objects.get(pk=bundle.request.user.pk)
+        bundle.obj.created_by = user
+        return bundle
 
-        deserialized = self.deserialize(request, request.body, format=request.META.get(
-            'CONTENT_TYPE', 'application/json'))
-        bundle = self.build_bundle(
-            data=dict_strip_unicode_keys(deserialized), request=request)
-        print(bundle.obj)
 
-        #create the invite object and save it
-        #email is set to unique on the Invitation model 
-        # - so if someone has already been invited you can use that invite if the projects selected have been changed
-        #create new user with the details provided - for ox.ac.uk address do an LDAP lookup to create the user (similar to new login via webauth now)
-        #override create_response to send the email itself (send_mail example for new webauth user elsewhere)
-        #email should use the password_reset model in some way to generate a url for the new user
-        #or for a ox.ac.uk address send a simple webauth link 
 
-        return self.create_response(request, bundle, response_class=http.HttpAccepted)
+
+    def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
+        """
+        Extracts the common "which-format/serialize/return-response" cycle.
+        Mostly a useful shortcut/hook.
+        """
+        desired_format = self.determine_format(request)
+        serialized = self.serialize(request, data, desired_format)
+        rc = response_class(content=serialized, content_type=build_content_type(
+            desired_format), **response_kwargs)
+
+        if response_class == http.HttpCreated:     
+            logger.debug("sending invite")
+        return rc
+    # def prepend_urls(self):
+    #     return [
+    #         url(r"^(?P<resource_name>%s)/invite_user/$" % self._meta.resource_name,
+    #             self.wrap_view('post_invite'), name="post_invite"),
+    #     ]
+
+    # def post_invite(self, request, **kwargs):
+
+    #     deserialized = self.deserialize(request, request.body, format=request.META.get(
+    #         'CONTENT_TYPE', 'application/json'))
+    #     bundle = self.build_bundle(
+    #         data=dict_strip_unicode_keys(deserialized), request=request)
+    #     print(bundle.obj)
+
+    #     #create the invite object and save it
+    #     #email is set to unique on the Invitation model 
+    #     # - so if someone has already been invited you can use that invite if the projects selected have been changed
+    #     #create new user with the details provided - for ox.ac.uk address do an LDAP lookup to create the user (similar to new login via webauth now)
+    #     #override create_response to send the email itself (send_mail example for new webauth user elsewhere)
+    #     #email should use the password_reset model in some way to generate a url for the new user
+    #     #or for a ox.ac.uk address send a simple webauth link 
+
+    #     return self.create_response(request, bundle, response_class=http.HttpAccepted)
 
 
 
