@@ -9,6 +9,7 @@ from cbh_core_model.models import Project
 def get_all_project_ids_for_user_perms(perms, possible_perm_levels):
     pids = []
     for perm in perms:
+        logger.info(perm)
         prms = str(perm).split(".")
         pid = prms[0]
         if pid[0].isdigit() and prms[1] in possible_perm_levels:
@@ -62,7 +63,9 @@ class ProjectListAuthorization(Authorization):
 
     def list_checks(self, request, model_klass, data, possible_perm_levels, object_list):
         perms = request.user.get_all_permissions()
+        logger.info(perms)
         pids = get_all_project_ids_for_user_perms(perms, possible_perm_levels)
+        logger.info(pids)
         self.login_checks(request,  model_klass, )
 
         return object_list.filter(pk__in=pids)
