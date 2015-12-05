@@ -4,17 +4,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
+from django.test import RequestFactory
 from tastypie.resources import ALL_WITH_RELATIONS
 from tastypie.resources import ModelResource
 from django.conf import settings
 from django.conf.urls import *
 from django.http import HttpResponse
-
+import shortuuid
 from tastypie.resources import ModelResource
 from tastypie import fields
+from django.contrib.auth.tokens import default_token_generator
 
-
+from django.contrib.auth.forms import PasswordResetForm
 from cbh_core_model.models import CustomFieldConfig
 from cbh_core_model.models import DataType
 from cbh_core_model.models import Project
@@ -29,7 +30,6 @@ from cbh_core_ws.serializers import CustomFieldsSerializer
 
 from django.db.models import Prefetch
 
-
 from tastypie.resources import ALL_WITH_RELATIONS
 from tastypie.utils.mime import build_content_type
 from django.http import HttpResponse
@@ -43,7 +43,8 @@ from django.contrib.auth import login as auth_login, logout as auth_logout
 from tastypie.resources import ModelResource
 from tastypie.authorization import Authorization
 from tastypie import http
-
+from django.contrib.auth.views import password_reset
+from django.db import IntegrityError
 # If ``csrf_exempt`` isn't present, stub it.
 try:
     from django.views.decorators.csrf import csrf_exempt
@@ -73,6 +74,8 @@ import importlib
 from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.contrib.auth.forms import PasswordResetForm
+from urllib import urlencode
 
 class CSRFExemptMixin(object):
     @method_decorator(csrf_exempt)
@@ -476,7 +479,6 @@ class InvitationResource(ModelResource):
 
 
 
-
     def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
         """
         Extracts the common "which-format/serialize/return-response" cycle.
@@ -489,6 +491,36 @@ class InvitationResource(ModelResource):
 
         if response_class == http.HttpCreated:     
             logger.debug("sending invite")
+            email = data.data["email"]
+            if email.endswith("ox.ac.uk"):
+                #send via webauth
+                pass
+            else:
+                logger.debug("emailing")
+                UserObj = get_user_model()
+                try:
+                    new_user = UserObj.objects.create(email=email, username=email)
+                    new_user.set_password(shortuuid.ShortUUID().random(length=20))
+                    new_user.save()
+                    from django.http import QueryDict
+                    form = PasswordResetForm(QueryDict(urlencode({"email": email})))
+                    if form.is_valid():
+                        opts = {
+                            'use_https': request.is_secure(),
+                            'token_generator': default_token_generator,
+                            'from_email': request.user.email,
+                            # 'email_template_name': email_template_name,
+                            # 'subject_template_name': subject_template_name,
+                            'request': request,
+                            
+                           # 'extra_email_context': {},
+                        }
+                        form.save(**opts)
+                    else:
+                        logger.debug(form)
+                except IntegrityError:
+                    raise BadRequest("User already exists, do you wish to invite again?")
+                
         return rc
     # def prepend_urls(self):
     #     return [
