@@ -562,6 +562,7 @@ class InvitationResource(ModelResource):
                 #send via webauth
                 raise BadRequest("We do not yet support inviting users at Oxford to projects. This feature will come soon.")
             else:
+
                 UserObj = get_user_model()
                 new_user, created = UserObj.objects.get_or_create(email=email, username=email)
                 logger.info(data.data)
@@ -569,6 +570,7 @@ class InvitationResource(ModelResource):
                     p = Project.objects.get(id=perm["id"])
                     p.make_viewer(new_user)
                     p.save()
+                data.data["message"] = "Invite sent successfully, would you like to invite anyone else?"
                 email_template_name = 'cbh_core_ws/email_new_user.html'
                 subject_template_name = 'cbh_core_ws/subject_new_user.html'
                 if not created:
@@ -581,6 +583,8 @@ class InvitationResource(ModelResource):
                                 email_template_name = 'cbh_core_ws/email_project_access_changed.html'
                                 subject_template_name = 'cbh_core_ws/subject_project_access_changed.html'
                                 all_projects_equal = False
+                                data.data["message"] = "Existing user invited to new projects, would you like to invite anyone else?"
+
                     
                     if all_projects_equal:
                         if not data.data.get("remind", False):
@@ -588,9 +592,11 @@ class InvitationResource(ModelResource):
                         if new_user.has_usable_password():
                             email_template_name = 'cbh_core_ws/email_reminder.html'
                             subject_template_name = 'cbh_core_ws/subject_reminder.html'
+                            data.data["message"] = "Sign-up reminder sent, would you like to invite anyone else?"
                         else:
                             email_template_name = 'cbh_core_ws/email_reminder_already_logged_on.html'
                             subject_template_name = 'cbh_core_ws/subject_reminder.html'
+                            data.data["message"] = "User reminded to look at these projects, would you like to invite anyone else?"
                 form = self.get_form( email, new_user, data, created, request, email_template_name, subject_template_name)                
         return rc
 
