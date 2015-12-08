@@ -9,12 +9,15 @@ from cbh_core_model.models import Project
 def get_all_project_ids_for_user_perms(perms, possible_perm_levels):
     pids = []
     for perm in perms:
-        logger.info(perm)
         prms = str(perm).split(".")
         pid = prms[0]
         if pid[0].isdigit() and prms[1] in possible_perm_levels:
             pids.append(int(pid))
     return pids
+
+def get_all_project_ids_for_user(user, possible_perm_levels):
+    return get_all_project_ids_for_user_perms(user.get_all_permissions(), possible_perm_levels)
+
 
 
 class ProjectListAuthorization(Authorization):
@@ -29,8 +32,7 @@ class ProjectListAuthorization(Authorization):
     """
 
     def editor_projects(self, request, ):
-        pids = get_all_project_ids_for_user_perms(
-            request.user.get_all_permissions(), ["editor"])
+        pids = get_all_project_ids_for_user(request.user, ["editor"])
         return pids
 
     def login_checks(self, request, model_klass):

@@ -7,13 +7,15 @@ logger = logging.getLogger(__name__)
 from django.test import RequestFactory
 from tastypie.resources import ALL_WITH_RELATIONS
 from tastypie.resources import ModelResource
+from tastypie.exceptions import BadRequest
 from django.conf import settings
 from django.conf.urls import *
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
 import shortuuid
 from tastypie.resources import ModelResource
 from tastypie import fields
 from django.contrib.auth.tokens import default_token_generator
+from tastypie.exceptions import ImmediateHttpResponse
 
 from django.contrib.auth.forms import PasswordResetForm
 from cbh_core_model.models import CustomFieldConfig
@@ -35,7 +37,7 @@ from tastypie.utils.mime import build_content_type
 from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.conf import settings
-
+from cbh_core_ws.authorization import get_all_project_ids_for_user
 from django.conf import settings
 from django.views.generic import FormView, View
 from django.contrib.auth.forms import AuthenticationForm
@@ -74,7 +76,8 @@ import importlib
 from django.views.generic import TemplateView
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.forms import PasswordResetForm, loader, get_current_site, urlsafe_base64_encode, force_bytes
+
 from urllib import urlencode
 
 class CSRFExemptMixin(object):
@@ -400,7 +403,6 @@ class SkinningResource(ModelResource):
         default_format = 'application/json'
         authentication = SessionAuthentication()
 
-
 class ProjectTypeResource(ModelResource):
 
     '''Resource for Project Type, specifies whether this is a chemical/inventory instance etc '''
@@ -454,6 +456,52 @@ class DataTypeResource(ModelResource):
     def dehydrate_plural(self, bundle):
         return inflection.pluralize(bundle.obj.name)
 
+
+
+class MyPasswordResetForm(PasswordResetForm):
+    def save(self, domain_override=None,
+             subject_template_name='registration/password_reset_subject.txt',
+             email_template_name='registration/password_reset_email.html',
+             use_https=False, token_generator=default_token_generator,
+             from_email=None, request=None, html_email_template_name=None, extra_email_context={}, user=None):
+        """
+        Generates a one-use only link for resetting password and sends to the
+        user.
+        """
+        from django.core.mail import send_mail
+        email = self.cleaned_data["email"]
+ 
+        if not domain_override:
+            current_site = get_current_site(request)
+            site_name = current_site.name
+            domain = current_site.domain
+        else:
+            site_name = domain = domain_override
+        c = {
+            'email': user.email,
+            'domain': domain,
+            'site_name': site_name,
+            'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+            'user': user,
+            'token': token_generator.make_token(user),
+            'protocol': 'https' if use_https else 'http',
+            'extra' : extra_email_context,
+
+        }
+        subject = loader.render_to_string(subject_template_name, c)
+        # Email subject *must not* contain newlines
+        subject = ''.join(subject.splitlines())
+        email = loader.render_to_string(email_template_name, c)
+
+        if html_email_template_name:
+            html_email = loader.render_to_string(html_email_template_name, c)
+        else:
+            html_email = None
+        logger.debug(html_email)
+        send_mail(subject, email, from_email, [user.email], html_message=html_email)
+
+ 
+
 class InvitationResource(ModelResource):
     '''Resource for Invitation model. This will setup creation of the invite email and new user '''
 
@@ -479,6 +527,25 @@ class InvitationResource(ModelResource):
 
 
 
+    def get_form(self, email, new_user, data, created, request, email_template_name, subject_template_name):
+        form = MyPasswordResetForm(QueryDict(urlencode({"email": email})))
+        if form.is_valid():
+            form.users_cache = [new_user,]
+            opts = {
+                'use_https': request.is_secure(),
+                'token_generator': default_token_generator,
+                'from_email': request.user.email,
+                'user' : new_user,
+                'email_template_name': email_template_name,
+                'subject_template_name': subject_template_name,
+                'request': request,
+                'extra_email_context': { 'invite': data.data, 'login_url' : settings.LOGIN_URL, },
+            }
+            form.save(**opts)
+
+        else:
+            raise BadRequest("Email not valid")
+
     def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
         """
         Extracts the common "which-format/serialize/return-response" cycle.
@@ -490,62 +557,42 @@ class InvitationResource(ModelResource):
             desired_format), **response_kwargs)
 
         if response_class == http.HttpCreated:     
-            logger.debug("sending invite")
             email = data.data["email"]
             if email.endswith("ox.ac.uk"):
                 #send via webauth
-                pass
+                raise BadRequest("We do not yet support inviting users at Oxford to projects. This feature will come soon.")
             else:
-                logger.debug("emailing")
                 UserObj = get_user_model()
-                try:
-                    new_user = UserObj.objects.create(email=email, username=email)
-                    new_user.set_password(shortuuid.ShortUUID().random(length=20))
-                    new_user.save()
-                    from django.http import QueryDict
-                    form = PasswordResetForm(QueryDict(urlencode({"email": email})))
-                    if form.is_valid():
-                        opts = {
-                            'use_https': request.is_secure(),
-                            'token_generator': default_token_generator,
-                            'from_email': request.user.email,
-                            # 'email_template_name': email_template_name,
-                            # 'subject_template_name': subject_template_name,
-                            'request': request,
-                            
-                           # 'extra_email_context': {},
-                        }
-                        form.save(**opts)
-                    else:
-                        logger.debug(form)
-                except IntegrityError:
-                    raise BadRequest("User already exists, do you wish to invite again?")
-                
+                new_user, created = UserObj.objects.get_or_create(email=email, username=email)
+                logger.info(data.data)
+                for perm in data.data["projects_selected"]:
+                    p = Project.objects.get(id=perm["id"])
+                    p.make_viewer(new_user)
+                    p.save()
+                email_template_name = 'cbh_core_ws/email_new_user.html'
+                subject_template_name = 'cbh_core_ws/subject_new_user.html'
+                if not created:
+                    projects_with_reader_access = get_all_project_ids_for_user(new_user,["editor", "viewer",])
+                    all_projects_equal = True
+                    for pid in projects_with_reader_access:
+
+                        for new_proj in data.data["projects_selected"]:
+                            if new_proj["id"] != pid:
+                                email_template_name = 'cbh_core_ws/email_project_access_changed.html'
+                                subject_template_name = 'cbh_core_ws/subject_project_access_changed.html'
+                                all_projects_equal = False
+                    
+                    if all_projects_equal:
+                        if not data.data.get("remind", False):
+                            raise ImmediateHttpResponse(http.HttpConflict('{"error": "User already exists, do you wish to invite again?"}'))
+                        if new_user.has_usable_password():
+                            email_template_name = 'cbh_core_ws/email_reminder.html'
+                            subject_template_name = 'cbh_core_ws/subject_reminder.html'
+                        else:
+                            email_template_name = 'cbh_core_ws/email_reminder_already_logged_on.html'
+                            subject_template_name = 'cbh_core_ws/subject_reminder.html'
+                form = self.get_form( email, new_user, data, created, request, email_template_name, subject_template_name)                
         return rc
-    # def prepend_urls(self):
-    #     return [
-    #         url(r"^(?P<resource_name>%s)/invite_user/$" % self._meta.resource_name,
-    #             self.wrap_view('post_invite'), name="post_invite"),
-    #     ]
-
-    # def post_invite(self, request, **kwargs):
-
-    #     deserialized = self.deserialize(request, request.body, format=request.META.get(
-    #         'CONTENT_TYPE', 'application/json'))
-    #     bundle = self.build_bundle(
-    #         data=dict_strip_unicode_keys(deserialized), request=request)
-    #     print(bundle.obj)
-
-    #     #create the invite object and save it
-    #     #email is set to unique on the Invitation model 
-    #     # - so if someone has already been invited you can use that invite if the projects selected have been changed
-    #     #create new user with the details provided - for ox.ac.uk address do an LDAP lookup to create the user (similar to new login via webauth now)
-    #     #override create_response to send the email itself (send_mail example for new webauth user elsewhere)
-    #     #email should use the password_reset model in some way to generate a url for the new user
-    #     #or for a ox.ac.uk address send a simple webauth link 
-
-    #     return self.create_response(request, bundle, response_class=http.HttpAccepted)
-
 
 
 
@@ -632,7 +679,7 @@ class CoreProjectResource(ModelResource):
     #         for item in d[4]:
     #             if item["value"] not in searchfields:
     #                 searchfields.add(item["value"] )
-    #                 searchfield_items.append(item)
+    #                 searchfield_items.appnew_userend(item)
     #     schemaform = {
     #             "schema" :{
     #                         "type" : "object",
