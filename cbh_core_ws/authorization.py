@@ -127,7 +127,7 @@ class ProjectAuthorization(Authorization):
         return False
 
     def project_ids(self, request, ):
-        login_checks(self, request)
+        self.login_checks(self, request, None)
         pids = get_all_project_ids_for_user_perms(
             request.user.get_all_permissions(), ["editor", "viewer", ])
         return pids
