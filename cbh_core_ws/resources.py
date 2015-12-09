@@ -53,7 +53,7 @@ try:
 except ImportError:
     def csrf_exempt(func):
         return func
-
+from  BeautifulSoup import BeautifulSoup
 try:
     import defusedxml.lxml as lxml
 except ImportError:
@@ -79,6 +79,9 @@ from django.utils.decorators import method_decorator
 from django.contrib.auth.forms import PasswordResetForm, loader, get_current_site, urlsafe_base64_encode, force_bytes
 
 from urllib import urlencode
+from django.core.mail import EmailMessage
+
+
 
 class CSRFExemptMixin(object):
     @method_decorator(csrf_exempt)
@@ -491,14 +494,12 @@ class MyPasswordResetForm(PasswordResetForm):
         subject = loader.render_to_string(subject_template_name, c)
         # Email subject *must not* contain newlines
         subject = ''.join(subject.splitlines())
-        email = loader.render_to_string(email_template_name, c)
+        html_email = loader.render_to_string(email_template_name, c)
+        soup = BeautifulSoup(html_email)
+        email = soup.getText()
 
-        if html_email_template_name:
-            html_email = loader.render_to_string(html_email_template_name, c)
-        else:
-            html_email = None
-        logger.debug(html_email)
-        send_mail(subject, email, from_email, [user.email], html_message=html_email)
+        
+        send_mail(subject, email, from_email, [user.email], html_message=html_email, fail_silently=False)
 
  
 
@@ -506,7 +507,7 @@ class InvitationResource(ModelResource):
     '''Resource for Invitation model. This will setup creation of the invite email and new user '''
 
     created_by = fields.ForeignKey(
-        "cbh_core_ws.resources.UserResource", 'created_by')
+        "cbh_core_ws.resources.UserResource", 'created_by', full=True)
     class Meta:
         queryset = Invitation.objects.all()
         resource_name = 'invitations'
@@ -528,18 +529,20 @@ class InvitationResource(ModelResource):
 
 
     def get_form(self, email, new_user, data, created, request, email_template_name, subject_template_name):
+        server = settings.SERVER_EMAIL
         form = MyPasswordResetForm(QueryDict(urlencode({"email": email})))
+        hostname = request.META["HTTP_ORIGIN"]
         if form.is_valid():
             form.users_cache = [new_user,]
             opts = {
                 'use_https': request.is_secure(),
                 'token_generator': default_token_generator,
-                'from_email': request.user.email,
+                'from_email': server,
                 'user' : new_user,
                 'email_template_name': email_template_name,
                 'subject_template_name': subject_template_name,
                 'request': request,
-                'extra_email_context': { 'invite': data.data, 'login_url' : settings.LOGIN_URL, },
+                'extra_email_context': {'hostname':hostname, 'invite': data.data, 'login_url' : settings.LOGIN_URL, },
             }
             form.save(**opts)
 
@@ -568,33 +571,32 @@ class InvitationResource(ModelResource):
                     p = Project.objects.get(id=perm["id"])
                     p.make_viewer(new_user)
                     p.save()
-                data.data["message"] = "Invite sent successfully, would you like to invite anyone else?"
+                data.data["message"] = "Invite sent successfully to %s, would you like to invite anyone else?" % email
                 email_template_name = 'cbh_core_ws/email_new_user.html'
                 subject_template_name = 'cbh_core_ws/subject_new_user.html'
                 if not created:
                     projects_with_reader_access = get_all_project_ids_for_user(new_user,["editor", "viewer",])
                     all_projects_equal = True
-                    for pid in projects_with_reader_access:
 
-                        for new_proj in data.data["projects_selected"]:
-                            if new_proj["id"] != pid:
-                                email_template_name = 'cbh_core_ws/email_project_access_changed.html'
-                                subject_template_name = 'cbh_core_ws/subject_project_access_changed.html'
-                                all_projects_equal = False
-                                data.data["message"] = "Existing user invited to new projects, would you like to invite anyone else?"
-
+                    all_selected_ids = set([new_proj["id"] for new_proj in data.data["projects_selected"]])
+                    new_ids = all_selected_ids - set(projects_with_reader_access)
                     
-                    if all_projects_equal:
+                    if(len(new_ids) > 0):
+                        email_template_name = 'cbh_core_ws/email_project_access_changed.html'
+                        subject_template_name = 'cbh_core_ws/subject_project_access_changed.html'
+                        all_projects_equal = False
+                        data.data["message"] = "Existing user %s invited to new projects, would you like to invite anyone else?" % email
+                    else:
                         if not data.data.get("remind", False):
                             raise ImmediateHttpResponse(http.HttpConflict('{"error": "User already exists, do you wish to invite again?"}'))
                         if new_user.has_usable_password():
                             email_template_name = 'cbh_core_ws/email_reminder.html'
                             subject_template_name = 'cbh_core_ws/subject_reminder.html'
-                            data.data["message"] = "Sign-up reminder sent, would you like to invite anyone else?"
+                            data.data["message"] = "Sign-up reminder sent to %s, would you like to invite anyone else?" % email
                         else:
                             email_template_name = 'cbh_core_ws/email_reminder_already_logged_on.html'
                             subject_template_name = 'cbh_core_ws/subject_reminder.html'
-                            data.data["message"] = "User reminded to look at these projects, would you like to invite anyone else?"
+                            data.data["message"] = "User %s reminded to look at these projects, would you like to invite anyone else?" % email
                 form = self.get_form( email, new_user, data, created, request, email_template_name, subject_template_name)         
 
         serialized = self.serialize(request, data, desired_format)
