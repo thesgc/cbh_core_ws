@@ -97,6 +97,8 @@ class ProjectAuthorization(Authorization):
         if not hasattr(request, 'user'):
             print "no_logged_in_user"
             raise Unauthorized("no_logged_in_user")
+        if not request.user.is_authenticated():
+            raise Unauthorized("no_logged_in_user")
 
     def base_checks(self, request, model_klass, data, possible_perm_levels):
         self.login_checks(request, model_klass)
@@ -125,6 +127,7 @@ class ProjectAuthorization(Authorization):
         return False
 
     def project_ids(self, request, ):
+        login_checks(self, request)
         pids = get_all_project_ids_for_user_perms(
             request.user.get_all_permissions(), ["editor", "viewer", ])
         return pids
