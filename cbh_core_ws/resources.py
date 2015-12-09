@@ -552,9 +552,7 @@ class InvitationResource(ModelResource):
         Mostly a useful shortcut/hook.
         """
         desired_format = self.determine_format(request)
-        serialized = self.serialize(request, data, desired_format)
-        rc = response_class(content=serialized, content_type=build_content_type(
-            desired_format), **response_kwargs)
+       
 
         if response_class == http.HttpCreated:     
             email = data.data["email"]
@@ -597,7 +595,11 @@ class InvitationResource(ModelResource):
                             email_template_name = 'cbh_core_ws/email_reminder_already_logged_on.html'
                             subject_template_name = 'cbh_core_ws/subject_reminder.html'
                             data.data["message"] = "User reminded to look at these projects, would you like to invite anyone else?"
-                form = self.get_form( email, new_user, data, created, request, email_template_name, subject_template_name)                
+                form = self.get_form( email, new_user, data, created, request, email_template_name, subject_template_name)         
+
+        serialized = self.serialize(request, data, desired_format)
+        rc = response_class(content=serialized, content_type=build_content_type(
+            desired_format), **response_kwargs)       
         return rc
 
 
