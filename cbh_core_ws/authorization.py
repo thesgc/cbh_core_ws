@@ -98,7 +98,7 @@ class ProjectAuthorization(Authorization):
             print "no_logged_in_user"
             raise Unauthorized("no_logged_in_user")
         if not request.user.is_authenticated():
-            raise Unauthorized("no_logged_in_user")
+            raise Unauthorized("no_logged_in")
 
     def base_checks(self, request, model_klass, data, possible_perm_levels):
         self.login_checks(request, model_klass)
@@ -126,8 +126,8 @@ class ProjectAuthorization(Authorization):
             return True
         return False
 
-    def project_ids(self, request, ):
-        self.login_checks(self, request, None)
+    def project_ids(self, request ):
+        self.login_checks( request, None)
         pids = get_all_project_ids_for_user_perms(
             request.user.get_all_permissions(), ["editor", "viewer", ])
         return pids
