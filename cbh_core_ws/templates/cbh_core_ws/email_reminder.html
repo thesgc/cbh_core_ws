@@ -1,7 +1,7 @@
 <p>Hi {{user.first_name}} {{user.last_name}}</p>
 
 
-<p>You have been previously invited to use the University of Oxford ChemBio Hub platform by {{extra.invite.created_by.data.first_name }} {{extra.invite.created_by.data.last_name }}. They have requested you have access to the following projects: {% for project in extra.invite.projects_selected %} "{{project.name}}"{% if  not forloop.last %}, {% endif %}{% endfor %}..</p>
+<p>You have been previously invited to use the University of Oxford ChemBio Hub platform by {{extra.invite.created_by.data.first_name }} {{extra.invite.created_by.data.last_name }}. They have requested you have access to the following projects: {% for project in extra.invite.projects_selected %} "{{project.name}}"{% if  not forloop.last %}, {% endif %}{% endfor %}.</p>
 
 <p>We noticed that you haven't accessed the system yet - it might be that the email got marked as junk mail or you just haven't had time. Either way, your account is still ready for you to finish the registration process and get fully set up on ChemBio Hub.</p>
 
