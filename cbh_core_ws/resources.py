@@ -25,7 +25,7 @@ from cbh_core_model.models import ProjectType
 from cbh_core_model.models import SkinningConfig
 from cbh_core_model.models import Invitation
 
-from cbh_core_ws.authorization import ProjectListAuthorization
+from cbh_core_ws.authorization import ProjectListAuthorization, InviteAuthorization
 from tastypie.authentication import SessionAuthentication
 from tastypie.paginator import Paginator
 from cbh_core_ws.serializers import CustomFieldsSerializer
@@ -511,7 +511,7 @@ class InvitationResource(ModelResource):
     class Meta:
         queryset = Invitation.objects.all()
         resource_name = 'invitations'
-        authorization = Authorization()
+        authorization = InviteAuthorization()
         include_resource_uri = False
         allowed_methods = ['get', 'post', 'put']
         default_format = 'application/json'

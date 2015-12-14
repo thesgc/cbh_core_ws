@@ -20,6 +20,47 @@ def get_all_project_ids_for_user(user, possible_perm_levels):
 
 
 
+class InviteAuthorization(Authorization):
+
+    def login_checks(self, request, model_klass, perms=None):
+
+        # If it doesn't look like a model, we can't check permissions.
+        # if not model_klass or not getattr(model_klass, '_meta', None):
+        #     print "improper_setup_of_authorization"
+        #     raise Unauthorized("improper_setup_of_authorization")
+        # User must be logged in to check permissions.
+        if not hasattr(request, 'user'):
+            print "no_logged_in_user"
+            raise Unauthorized("no_logged_in_user")
+        if not request.user.is_authenticated():
+            raise Unauthorized("no_logged_in")
+
+
+    def create_list(self, object_list, bundle):
+        return []
+
+
+    def create_detail(self, object_list, bundle):
+        self.login_checks(bundle.request, bundle.obj.__class__)
+        pids = get_all_project_ids_for_user_perms(
+            bundle.request.user.get_all_permissions(), ["editor", ])
+        for project in bundle.data["projects_selected"]:
+            if(project["id"] not in pids):
+                raise Unauthorized("Not authorized to invite to this project, you must have editor status")
+        return True
+        # return self.base_checks(bundle.request, bundle.obj.__class__,
+        # bundle.data, ["editor",])
+
+    def update_detail(self, object_list, bundle):
+
+        raise Unauthorized("not authroized for to update")
+
+
+
+
+
+
+
 class ProjectListAuthorization(Authorization):
 
     """
