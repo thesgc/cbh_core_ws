@@ -3,20 +3,10 @@ from tastypie.exceptions import Unauthorized
 import logging
 logger = logging.getLogger(__name__)
 logger_debug = logging.getLogger(__name__)
-from cbh_core_model.models import Project
+from cbh_core_model.models import Project, get_all_project_ids_for_user_perms, get_all_project_ids_for_user, RESTRICTED, get_projects_where_fields_restricted
 
 
-def get_all_project_ids_for_user_perms(perms, possible_perm_levels):
-    pids = []
-    for perm in perms:
-        prms = str(perm).split(".")
-        pid = prms[0]
-        if pid[0].isdigit() and prms[1] in possible_perm_levels:
-            pids.append(int(pid))
-    return pids
 
-def get_all_project_ids_for_user(user, possible_perm_levels):
-    return get_all_project_ids_for_user_perms(user.get_all_permissions(), possible_perm_levels)
 
 
 
@@ -112,6 +102,32 @@ class ProjectListAuthorization(Authorization):
         self.login_checks(request,  model_klass, )
 
         return object_list.filter(pk__in=pids)
+
+
+    def alter_project_data_for_permissions(self, bundle, request):
+        editor_projects = self.editor_projects(request)
+        restricted_and_unrestricted_projects = get_projects_where_fields_restricted(request.user)
+
+        if bundle.get("objects", False):
+            for bun in bundle['objects']:
+                bun.data['editor'] = bun.obj.id in editor_projects
+                self.alter_bundle_for_user_custom_field_restrictions(bun, restricted_and_unrestricted_projects)
+        else:
+            bun['editor'] = bun.obj.id in editor_projects
+            self.alter_bundle_for_user_custom_field_restrictions(bundle, restricted_and_unrestricted_projects)
+
+    def alter_bundle_for_user_custom_field_restrictions(self, bundle, restricted_and_unrestricted_projects):
+        """Post serialization modification to the list of fields based on the field permissions"""
+        if bundle.data["id"] in restricted_and_unrestricted_projects[RESTRICTED]:
+            new_fields = []
+            for field in bundle.data["custom_field_config"].data["project_data_fields"]:
+                if field.data["open_or_restricted"] == RESTRICTED:
+                    #This is a restricted field and the user's access is restricted therefore block them
+                    pass
+                else:
+                    new_fields.append(field)
+            bundle.data["custom_field_config"].data["project_data_fields"] = new_fields
+
 
     def read_list(self, object_list, bundle):
         return self.list_checks(bundle.request, bundle.obj.__class__, bundle.data, ["editor", "viewer", ], object_list)
