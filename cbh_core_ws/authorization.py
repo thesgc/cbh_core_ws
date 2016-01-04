@@ -112,9 +112,9 @@ class ProjectListAuthorization(Authorization):
             for bun in bundle['objects']:
                 bun.data['editor'] = bun.obj.id in editor_projects
                 self.alter_bundle_for_user_custom_field_restrictions(bun, restricted_and_unrestricted_projects)
-        else:
-            bundle['editor'] = bundle.obj.id in editor_projects
-            self.alter_bundle_for_user_custom_field_restrictions(bundle, restricted_and_unrestricted_projects)
+        #else:
+        #    bundle['editor'] = bundle.obj.id in editor_projects
+        #    self.alter_bundle_for_user_custom_field_restrictions(bundle, restricted_and_unrestricted_projects)
 
     def alter_bundle_for_user_custom_field_restrictions(self, bundle, restricted_and_unrestricted_projects):
         """Post serialization modification to the list of fields based on the field permissions"""
