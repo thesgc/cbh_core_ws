@@ -5,8 +5,17 @@ logger = logging.getLogger(__name__)
 logger_debug = logging.getLogger(__name__)
 from cbh_core_model.models import Project, get_all_project_ids_for_user_perms, get_all_project_ids_for_user, RESTRICTED, get_projects_where_fields_restricted
 
+def viewer_projects(user):
+    pids = get_all_project_ids_for_user(user, ["viewer","editor", "admin"])
+    return pids
 
+def editor_projects(user):
+    pids = get_all_project_ids_for_user(user, ["editor", "admin"])
+    return pids
 
+def owner_projects(user):
+    pids = get_all_project_ids_for_user(user, ["admin"])
+    return pids
 
 
 
@@ -14,11 +23,6 @@ class InviteAuthorization(Authorization):
 
     def login_checks(self, request, model_klass, perms=None):
 
-        # If it doesn't look like a model, we can't check permissions.
-        # if not model_klass or not getattr(model_klass, '_meta', None):
-        #     print "improper_setup_of_authorization"
-        #     raise Unauthorized("improper_setup_of_authorization")
-        # User must be logged in to check permissions.
         if not hasattr(request, 'user'):
             print "no_logged_in_user"
             raise Unauthorized("no_logged_in_user")
@@ -32,14 +36,12 @@ class InviteAuthorization(Authorization):
 
     def create_detail(self, object_list, bundle):
         self.login_checks(bundle.request, bundle.obj.__class__)
-        pids = get_all_project_ids_for_user_perms(
-            bundle.request.user.get_all_permissions(), ["editor", ])
+        pids = editor_projects(bundle.request.user)
         for project in bundle.data["projects_selected"]:
             if(project["id"] not in pids):
                 raise Unauthorized("Not authorized to invite to this project, you must have editor status")
         return True
-        # return self.base_checks(bundle.request, bundle.obj.__class__,
-        # bundle.data, ["editor",])
+
 
     def update_detail(self, object_list, bundle):
 
@@ -62,17 +64,9 @@ class ProjectListAuthorization(Authorization):
     on, as that's all the more granular Django's permission setup gets.
     """
 
-    def editor_projects(self, request, ):
-        pids = get_all_project_ids_for_user(request.user, ["editor"])
-        return pids
+    
 
     def login_checks(self, request, model_klass):
-
-        # If it doesn't look like a model, we can't check permissions.
-        # if not model_klass or not getattr(model_klass, '_meta', None):
-        #     print "improper_setup_of_authorization"
-        #     raise Unauthorized("improper_setup_of_authorization")
-        # User must be logged in to check permissions.
         if not hasattr(request, 'user'):
             print "no_logged_in_user"
             raise Unauthorized("no_logged_in_user")
@@ -94,27 +88,32 @@ class ProjectListAuthorization(Authorization):
         raise Unauthorized(
             "user_does_not_have_correct_permissions_for_operation")
 
-    def list_checks(self, request, model_klass, data, possible_perm_levels, object_list):
+    def list_checks(self, request, model_klass, object_list):
         perms = request.user.get_all_permissions()
-        logger.info(perms)
-        pids = get_all_project_ids_for_user_perms(perms, possible_perm_levels)
-        logger.info(pids)
+        pids = viewer_projects(request.user)
         self.login_checks(request,  model_klass, )
 
         return object_list.filter(pk__in=pids)
 
 
     def alter_project_data_for_permissions(self, bundle, request):
-        editor_projects = self.editor_projects(request)
+        edit_projects = editor_projects(request.user)
+        own_projects = owner_projects(request.user)
         restricted_and_unrestricted_projects = get_projects_where_fields_restricted(request.user)
 
-        if bundle.get("objects", False):
+        if isinstance(bundle, dict):
             for bun in bundle['objects']:
-                bun.data['editor'] = bun.obj.id in editor_projects
+                bun.data['editor'] = bun.obj.id in edit_projects
+                bun.data["owner"] = bun.obj.id in own_projects
                 self.alter_bundle_for_user_custom_field_restrictions(bun, restricted_and_unrestricted_projects)
-        #else:
-        #    bundle['editor'] = bundle.obj.id in editor_projects
-        #    self.alter_bundle_for_user_custom_field_restrictions(bundle, restricted_and_unrestricted_projects)
+        else:
+            bundle.data['editor'] = bundle.obj.id in edit_projects
+            bundle.data["owner"] = bundle.obj.id in own_projects
+
+
+
+
+
 
     def alter_bundle_for_user_custom_field_restrictions(self, bundle, restricted_and_unrestricted_projects):
         """Post serialization modification to the list of fields based on the field permissions"""
@@ -130,7 +129,27 @@ class ProjectListAuthorization(Authorization):
 
 
     def read_list(self, object_list, bundle):
-        return self.list_checks(bundle.request, bundle.obj.__class__, bundle.data, ["editor", "viewer", ], object_list)
+        return self.list_checks(bundle.request, bundle.obj.__class__, object_list)
+
+
+    def update_list(self, object_list, bundle):
+        '''Only owners of projects are allowed to update them'''
+        return object_list
+
+    def update_detail(self, object_list, bundle):
+        '''Only owners of projects are allowed to update them'''
+        print "calling"
+        return True
+        # self.login_checks(bundle.request, bundle.obj.__class__)
+        # pids = owner_projects(request.user)
+        # if bundle.obj.project.id in pids:
+        #     return object_list
+        # raise Unauthorized("Not authorized to update project")
+
+
+    def create_detail(self, object_list, bundle):
+        '''All users are allowed to create projects for now'''
+        return object_list
 
 
 class ProjectAuthorization(Authorization):
@@ -145,19 +164,13 @@ class ProjectAuthorization(Authorization):
     """
 
     def login_checks(self, request, model_klass, perms=None):
-
-        # If it doesn't look like a model, we can't check permissions.
-        # if not model_klass or not getattr(model_klass, '_meta', None):
-        #     print "improper_setup_of_authorization"
-        #     raise Unauthorized("improper_setup_of_authorization")
-        # User must be logged in to check permissions.
         if not hasattr(request, 'user'):
             print "no_logged_in_user"
             raise Unauthorized("no_logged_in_user")
         if not request.user.is_authenticated():
             raise Unauthorized("no_logged_in")
 
-    def base_checks(self, request, model_klass, data, possible_perm_levels):
+    def base_checks(self, request, model_klass, data, funct):
         self.login_checks(request, model_klass)
 
         if not data.get("project__project_key", None):
@@ -177,22 +190,23 @@ class ProjectAuthorization(Authorization):
             key = data.get("project__project_key")
 
         project = Project.objects.get(project_key=key)
-        pids = get_all_project_ids_for_user_perms(
-            request.user.get_all_permissions(), possible_perm_levels)
+        pids = funct(request.user)
         if project.id in pids:
             return True
         return False
 
     def project_ids(self, request ):
         self.login_checks( request, None)
-        pids = get_all_project_ids_for_user_perms(
-            request.user.get_all_permissions(), ["editor", "viewer", ])
+        pids = viewer_projects(request.user)
         return pids
 
     def create_list(self, object_list, bundle):
-        print "create"
         bool = self.base_checks(
-            bundle.request, bundle.obj.__class__, bundle.data, ["editor", ])
+            bundle.request, 
+            bundle.obj.__class__, 
+            bundle.data, 
+            edit_projects
+            )
         if bool is True:
             return object_list
         else:
@@ -200,11 +214,9 @@ class ProjectAuthorization(Authorization):
             return []
 
     def read_detail(self, object_list, bundle):
-        print "readdet"
 
         self.login_checks(bundle.request, bundle.obj.__class__)
-        pids = get_all_project_ids_for_user_perms(
-            bundle.request.user.get_all_permissions(), ["editor", "viewer"])
+        pids = viewer_projects(request.user)
         if bundle.obj.project.id in pids:
             return True
         else:
@@ -217,8 +229,7 @@ class ProjectAuthorization(Authorization):
 
     def create_detail(self, object_list, bundle):
         self.login_checks(bundle.request, bundle.obj.__class__)
-        pids = get_all_project_ids_for_user_perms(
-            bundle.request.user.get_all_permissions(), ["editor", ])
+        pids = editor_projects(bundle.request.user)
         if bundle.data["project"].id in pids:
             return True
         else:
@@ -228,8 +239,7 @@ class ProjectAuthorization(Authorization):
 
     def update_detail(self, object_list, bundle):
         self.login_checks(bundle.request, bundle.obj.__class__)
-        pids = get_all_project_ids_for_user_perms(
-            bundle.request.user.get_all_permissions(), ["editor", ])
+        pids = editor_projects(bundle.request.user)
         if bundle.obj.project.id in pids:
             return True
 

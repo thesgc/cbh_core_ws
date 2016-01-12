@@ -25,7 +25,7 @@ from cbh_core_model.models import ProjectType
 from cbh_core_model.models import SkinningConfig
 from cbh_core_model.models import Invitation
 
-from cbh_core_ws.authorization import ProjectListAuthorization, InviteAuthorization
+from cbh_core_ws.authorization import ProjectListAuthorization, InviteAuthorization, viewer_projects
 from tastypie.authentication import SessionAuthentication
 from tastypie.paginator import Paginator
 from cbh_core_ws.serializers import CustomFieldsSerializer
@@ -413,9 +413,9 @@ class ProjectTypeResource(ModelResource):
         always_return_data = True
         queryset = ProjectType.objects.all()
         resource_name = 'cbh_project_types'
-        #authorization = Authorization()
+        authorization = Authorization()
         include_resource_uri = False
-        allowed_methods = ['get', 'post', 'put']
+        allowed_methods = ['get', 'post', 'patch', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
 
@@ -446,9 +446,9 @@ class DataTypeResource(ModelResource):
         always_return_data = True
         queryset = DataType.objects.all()
         resource_name = 'cbh_data_types'
-        #authorization = ProjectListAuthorization()
+        authorization = Authorization()
         include_resource_uri = False
-        allowed_methods = ['get', 'post', 'put']
+        allowed_methods = ['get', 'post', 'patch', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
         filtering = {
@@ -575,7 +575,7 @@ class InvitationResource(ModelResource):
                 email_template_name = 'cbh_core_ws/email_new_user.html'
                 subject_template_name = 'cbh_core_ws/subject_new_user.html'
                 if not created:
-                    projects_with_reader_access = get_all_project_ids_for_user(new_user,["editor", "viewer",])
+                    projects_with_reader_access = viewer_projects(new_user)
                     all_projects_equal = True
 
                     all_selected_ids = set([new_proj["id"] for new_proj in data.data["projects_selected"]])
@@ -654,114 +654,4 @@ class CoreProjectResource(ModelResource):
             rc['Content-Disposition'] = 'attachment; filename=project_data_explanation.xlsx'
         return rc
 
-    #     editor_projects = self._meta.authorization.editor_projects(request)
-    #     for bun in bundle["objects"]:
-    #         bun.data["editor"] = bun.obj.id in editor_projects
-
-    #     if request.GET.get("schemaform", None):
-    #         searchfields = set([])
-    #         searchfield_items = []
-
-    #         for bun in bundle["objects"]:
-    #             schemaform = self.get_schema_form(bun.obj.custom_field_config,
-    #                 bun.obj.project_key,
-    #                 searchfield_items=searchfield_items,
-    #                 searchfields=searchfields,)
-    #             bun.data["schemaform"] = schemaform
-    #             bun.data["editor"] = bun.obj.id in editor_projects
-
-    # if(self.determine_format(request) ==
-    # 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or
-    # request.GET.get("format") == "xls"  ):
-
-    #         cfr_string = self.get_object_list(request).filter(id=request.GET.get("project_key"))[0].custom_field_config.schemaform
-    #         cfr_json = json.loads(cfr_string)
-    #         bundle['custom_field_config'] = cfr_json['form']
-
-    #     return bundle
-
-    # def get_schema_form(self, custom_field_config, project_key, searchfield_items=[], searchfields=set([]),):
-    #     fields = []
-
-    #     for f in custom_field_config.pinned_custom_field.all():
-    #         d = self.get_field_values(f, project_key)
-    #         fields.append(d)
-    #         for item in d[4]:
-    #             if item["value"] not in searchfields:
-    #                 searchfields.add(item["value"] )
-    #                 searchfield_items.appnew_userend(item)
-    #     schemaform = {
-    #             "schema" :{
-    #                         "type" : "object",
-    #                         "properties"   :  dict((field[0],field[1]) for field in fields),
-    #                         "required" : []
-    #             },
-    #             "form" : [field[0] if not field[3] else field[3] for field in fields ]
-    #         }
-    #     return schemaform
-
-    # def get_field_values(self,  obj, projectKey):
-    #     data =  copy.deepcopy(obj.FIELD_TYPE_CHOICES[obj.field_type]["data"])
-
-    #     data["title"] = obj.name
-    #     data["placeholder"] = obj.description
-    #     data["friendly_field_type"] = obj.FIELD_TYPE_CHOICES[obj.field_type]["name"]
-
-    #     form = {}
-    #     form["field_type"] = obj.field_type
-    #     form["position"] = obj.position
-    #     form["key"] = obj.name
-    #     form["title"] = obj.name
-    #     form["placeholder"] = obj.description
-    #     form["allowed_values"] = obj.allowed_values
-    #     form["part_of_blinded_key"] = obj.part_of_blinded_key
-    #     searchitems = []
-    #     if obj.UISELECT in data.get("format", ""):
-    #         allowed_items = obj.get_allowed_items(projectKey)
-    #         data["items"] = allowed_items[0]
-    #         searchitems = allowed_items[1]
-    #         #if we have a uiselect field with no description, make the placeholder say "Choose..."
-    #         #if obj.description == None:
-    #         form["placeholder"] = "Choose..."
-    #         form["help"] = obj.description
-    #         # form["helpdirectivename"] = "info-box"
-    #         # form["helpdirectiveparams"] = "freetext='%s'" % (obj.description)
-    #         # form["helpDirectiveClasses"] = "pull-right info-box"
-    #         # #form["title"] = "%s<info-box freetext='%s'></info-box>" % (obj.name, obj.description)
-    #     else:
-    #         allowed_items = obj.get_allowed_items(projectKey)
-    #         searchitems = allowed_items[1]
-
-    #     maxdate = time.strftime("%Y-%m-%d")
-    #     if data.get("format", False) == obj.DATE:
-    #         form.update( {
-    #             "minDate": "2000-01-01",
-    #             "maxDate": maxdate,
-    #             'type': 'datepicker',
-    #             "format": "yyyy-mm-dd",
-    #             'pickadate': {
-    #               'selectYears': True,
-    #               'selectMonths': True,
-    #             },
-    #         })
-
-    #     else:
-    #         for item in ["options"]:
-    #             stuff = data.pop(item, None)
-    #             if stuff:
-    #                 form[item] = stuff
-    #     return (obj.name, data, obj.required, form, searchitems)
-
-    # def create_response(self, request, data, response_class=HttpResponse, **response_kwargs):
-    #     """
-    #     Extracts the common "which-format/serialize/return-response" cycle.
-    #     Mostly a useful shortcut/hook.
-    #     """
-
-    #     desired_format = self.determine_format(request)
-    #     serialized = self.serialize(request, data, desired_format)
-    #     rc = response_class(content=serialized, content_type=build_content_type(desired_format), **response_kwargs)
-
-    #     if(desired_format == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'):
-    #         rc['Content-Disposition'] = 'attachment; filename=project_data_explanation.xlsx'
-    #     return rc
+   
