@@ -71,22 +71,6 @@ class ProjectListAuthorization(Authorization):
             print "no_logged_in_user"
             raise Unauthorized("no_logged_in_user")
 
-    def base_checks(self, request, model_klass, data, possible_perm_levels, perms=None):
-        self.login_checks(request, model_klass)
-        if not data.get("project_key", None):
-            print "no_project_key"
-            raise Unauthorized("no_project_key")
-
-        project = data.get("project", False)
-
-        has_perm = Project.objects.get_user_permission(
-            project.id, request.user, possible_perm_levels, perms=perms)
-        if has_perm is True:
-            return True
-
-        print "user_does_not_have_correct_permissions_for_operation"
-        raise Unauthorized(
-            "user_does_not_have_correct_permissions_for_operation")
 
     def list_checks(self, request, model_klass, object_list):
         perms = request.user.get_all_permissions()
