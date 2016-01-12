@@ -6,15 +6,15 @@ logger_debug = logging.getLogger(__name__)
 from cbh_core_model.models import Project, get_all_project_ids_for_user_perms, get_all_project_ids_for_user, RESTRICTED, get_projects_where_fields_restricted
 
 def viewer_projects(user):
-    pids = get_all_project_ids_for_user(user, ["viewer","editor", "admin"])
+    pids = get_all_project_ids_for_user(user, ["viewer","editor", "owner"])
     return pids
 
 def editor_projects(user):
-    pids = get_all_project_ids_for_user(user, ["editor", "admin"])
+    pids = get_all_project_ids_for_user(user, ["editor", "owner"])
     return pids
 
 def owner_projects(user):
-    pids = get_all_project_ids_for_user(user, ["admin"])
+    pids = get_all_project_ids_for_user(user, ["owner"])
     return pids
 
 
