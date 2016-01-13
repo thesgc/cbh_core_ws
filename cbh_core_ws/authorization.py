@@ -115,25 +115,30 @@ class ProjectListAuthorization(Authorization):
     def read_list(self, object_list, bundle):
         return self.list_checks(bundle.request, bundle.obj.__class__, object_list)
 
+    def create_list(self, object_list, bundle):
+        '''Creting lists is not allowed'''
+        raise Unauthorized("Creating lists of projects not supported")
+        
+    def create_detail(self, object_list, bundle):
+        '''Creating projects is allowed for all logged in users'''
+        self.login_checks(bundle.request, bundle.obj.__class__)
+        return True
+        
 
     def update_list(self, object_list, bundle):
         '''Only owners of projects are allowed to update them'''
-        return object_list
+        return []
 
     def update_detail(self, object_list, bundle):
         '''Only owners of projects are allowed to update them'''
-        print "calling"
-        return True
-        # self.login_checks(bundle.request, bundle.obj.__class__)
-        # pids = owner_projects(request.user)
-        # if bundle.obj.project.id in pids:
-        #     return object_list
-        # raise Unauthorized("Not authorized to update project")
+        
+        self.login_checks(bundle.request, bundle.obj.__class__)
+        pids = owner_projects(request.user)
+        if bundle.obj.project.id in pids:
+            return True
+        raise Unauthorized("Not authorized to update project")
 
 
-    def create_detail(self, object_list, bundle):
-        '''All users are allowed to create projects for now'''
-        return object_list
 
 
 class ProjectAuthorization(Authorization):

@@ -13,6 +13,14 @@ from solo.admin import SingletonModelAdmin
 
 from django import forms
 
+class CreatedByAdmin(object):
+    def save_model(self, request, obj, form, change):
+        if not obj.id:
+            obj.created_by = request.user
+        obj.save()
+
+
+
 
 class GrappelliSortableHiddenMixin(object):
 
@@ -28,16 +36,11 @@ class GrappelliSortableHiddenMixin(object):
         return super(GrappelliSortableHiddenMixin, self).formfield_for_dbfield(db_field, **kwargs)
 
 
-class DataFormConfigAdmin(ModelAdmin):
+class DataFormConfigAdmin(CreatedByAdmin, ModelAdmin):
     exclude = ["created_by", "parent"]
-    # def get_queryset(self, request):
-    #     qs = super(DataFormConfigAdmin, self).get_queryset(request)
-    #     return qs.filter(human_added=True)
 
     def save_model(self, request, obj, form, change):
-        obj.created_by = request.user
-        obj.save()
-
+        super(DataFormConfigAdmin, self).save_model(request, obj, form, change)
         obj.get_all_ancestor_objects(request)
 
 
@@ -110,27 +113,7 @@ class CustomFieldConfigAdmin(ModelAdmin):
     def save_model(self, request, obj, form, change):
         obj.created_by = request.user
         obj.save()
-    #     if obj.pinned_custom_field.all().count() == 0 and obj.schemaform:
-    #         data = json.loads(form.cleaned_data["schemaform"])["form"]
-    #         for position, field in enumerate(data):
-    #             PinnedCustomField.objects.create(allowed_values=field["allowed_values"],
-    #                                             custom_field_config=obj,
-    #                                             field_type=field["field_type"],
-    #                                             position=field["position"],
-    #                                             name=field["key"],
-    #                                             description=field["placeholder"])
 
-    # def log_change(self, request, object, message):
-    #     """
-    #     Log that an object has been successfully changed.
-    #     The default implementation creates an admin LogEntry object.
-    #     """
-    #     super(CustomFieldConfigAdmin, self).log_change(request, object, message)
-    #     cfr = ChemregProjectResource()
-    #     if object.__class__.__name__ == "CustomFieldConfig":
-    #         schemaform = json.dumps(cfr.get_schema_form(object,"" ))
-    #         object.schemaform = schemaform
-    #         object.save()
 
     formfield_overrides = {
         models.CharField: {'widget': TextInput(attrs={'size': '20'})},
@@ -141,25 +124,13 @@ class ProjectTypeAdmin(ModelAdmin):
     list_display = ('name', 'show_compounds')
 
 
-class ProjectAdmin(ModelAdmin):
+class ProjectAdmin(CreatedByAdmin, ModelAdmin):
     prepopulated_fields = {"project_key": ("name",)}
     list_display = ('name', 'project_key', 'created', 'project_type')
     search_fields = ('name',)
     ordering = ('-created',)
     date_hierarchy = 'created'
     exclude = ["created_by"]
-
-    def save_model(self, request, obj, form, change):
-        obj.created_by = request.user
-        obj.save()
-
-        # if project.project_type.name == "Assay":
-        #     cfc_ids = [dfc.l0_id for dfc in project.enabled_forms.all()]
-        #     cfc_ids = list(set(cfc_ids))
-        #     if len(cfc_ids) == 1:
-        #         #We have a single l0 datapoint therefore configure the first data point classification
-        #         root_dfc = DataFormConfig.objects.get(l0_id=cfc_ids[0])
-        #         DataPointClassification.objects.get(l0_id=cfc_ids[0], l1_id=None, l2_id=None, l3_id=None, l4_id=None)
 
 
 admin.site.register(CustomFieldConfig, CustomFieldConfigAdmin)

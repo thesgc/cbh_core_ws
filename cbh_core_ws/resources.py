@@ -81,6 +81,14 @@ from django.contrib.auth.forms import PasswordResetForm, loader, get_current_sit
 from urllib import urlencode
 from django.core.mail import EmailMessage
 
+class UserHydrate(object):
+    def hydrate_created_by(self, bundle):
+        if bundle.obj.id:
+            pass
+        else:
+            user = User.objects.get(pk=bundle.request.user.pk)
+            bundle.obj.created_by = user
+        return bundle
 
 
 class CSRFExemptMixin(object):
@@ -283,25 +291,25 @@ class UserResource(ModelResource):
 
 
     def dehydrate_can_view_chemreg(self, bundle):
-        '''The _can_see.no_chemreg role in the Django admin is used to
+        '''The cbh_core_model.no_chemreg role in the Django admin is used to
         deny access to chemreg. As superusers have all permissions  by 
         default they would be denied access therefore we check for superuser status and allow access'''
         if bundle.obj.is_superuser:
             return True
         perms = bundle.obj.get_all_permissions()
-        if "_can_see.no_chemreg" in perms:
+        if "cbh_core_model.no_chemreg" in perms:
             return False
         return True
 
     def dehydrate_can_view_assayreg(self, bundle):
-        '''The _can_see.no_assayreg role in the Django admin is used to
+        '''The cbh_core_model.no_assayreg role in the Django admin is used to
         deny access to assayreg. As superusers have all permissions  by 
         default they would be denied access therefore we check for superuser status and allow access'''
 
         if bundle.obj.is_superuser:
             return True
         perms = bundle.obj.get_all_permissions()
-        if "_can_see.no_assayreg" in perms:
+        if "cbh_core_model.no_assayreg" in perms:
             return False
         return True
 
@@ -503,7 +511,7 @@ class MyPasswordResetForm(PasswordResetForm):
 
  
 
-class InvitationResource(ModelResource):
+class InvitationResource(UserHydrate, ModelResource):
     '''Resource for Invitation model. This will setup creation of the invite email and new user '''
 
     created_by = fields.ForeignKey(
@@ -521,10 +529,7 @@ class InvitationResource(ModelResource):
             "email": ALL_WITH_RELATIONS
         }
 
-    def hydrate_created_by(self, bundle):
-        user = get_user_model().objects.get(pk=bundle.request.user.pk)
-        bundle.obj.created_by = user
-        return bundle
+
 
 
 
