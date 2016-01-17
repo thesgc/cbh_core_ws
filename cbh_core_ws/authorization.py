@@ -133,8 +133,8 @@ class ProjectListAuthorization(Authorization):
         '''Only owners of projects are allowed to update them'''
         
         self.login_checks(bundle.request, bundle.obj.__class__)
-        pids = owner_projects(request.user)
-        if bundle.obj.project.id in pids:
+        pids = owner_projects(bundle.request.user)
+        if bundle.obj.id in pids:
             return True
         raise Unauthorized("Not authorized to update project")
 

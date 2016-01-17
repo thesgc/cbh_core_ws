@@ -68,7 +68,7 @@ except AttributeError:
 from tastypie.authentication import SessionAuthentication
 
 from django.contrib.auth import get_user_model
-
+User = get_user_model()
 import inflection
 import six
 import importlib
@@ -80,7 +80,6 @@ from django.contrib.auth.forms import PasswordResetForm, loader, get_current_sit
 
 from urllib import urlencode
 from django.core.mail import EmailMessage
-
 class UserHydrate(object):
     def hydrate_created_by(self, bundle):
         if bundle.obj.id:
@@ -422,7 +421,7 @@ class ProjectTypeResource(ModelResource):
         queryset = ProjectType.objects.all()
         resource_name = 'cbh_project_types'
         authorization = Authorization()
-        include_resource_uri = False
+        include_resource_uri = True
         allowed_methods = ['get', 'post', 'patch', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
