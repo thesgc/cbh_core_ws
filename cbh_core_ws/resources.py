@@ -80,6 +80,26 @@ from django.contrib.auth.forms import PasswordResetForm, loader, get_current_sit
 
 from urllib import urlencode
 from django.core.mail import EmailMessage
+
+
+class DictField(fields.ApiField):
+    """
+    A dictionary field.
+    """
+    dehydrated_type = 'dict'
+    help_text = "A dictionary of data. Ex: {'price': 26.73, 'name': 'Daniel'}"
+
+    def convert(self, value):
+        if value is None:
+            return None
+        try:
+            return dict(value)
+        except ValueError e:
+            print(e)
+            return {}
+
+
+
 class UserHydrate(object):
     def hydrate_created_by(self, bundle):
         if bundle.obj.id:
