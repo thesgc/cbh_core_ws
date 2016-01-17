@@ -82,7 +82,7 @@ from urllib import urlencode
 from django.core.mail import EmailMessage
 
 
-class DictField(fields.ApiField):
+class CBHDictField(fields.ApiField):
     """
     A dictionary field.
     """
@@ -94,8 +94,9 @@ class DictField(fields.ApiField):
             return None
         try:
             return dict(value)
-        except ValueError e:
-            print(e)
+        except ValueError, e:
+            print str(e)
+            print value
             return {}
 
 
