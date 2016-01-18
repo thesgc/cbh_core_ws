@@ -95,10 +95,8 @@ class CBHDictField(fields.ApiField):
         try:
             return dict(value)
         except ValueError, e:
-            print str(e)
-            print value
-            return {}
-
+            return {key: v for key,v in value.items()}
+        
 
 
 
