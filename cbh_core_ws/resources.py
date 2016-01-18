@@ -80,7 +80,7 @@ from django.contrib.auth.forms import PasswordResetForm, loader, get_current_sit
 
 from urllib import urlencode
 from django.core.mail import EmailMessage
-
+from django.contrib.auth.models import Permission
 
 class CBHDictField(fields.ApiField):
     """
@@ -98,6 +98,8 @@ class CBHDictField(fields.ApiField):
             print str(e)
             print value
             return {}
+
+
 
 
 
@@ -277,6 +279,7 @@ class UserResource(ModelResource):
     '''Displays information about the User's privileges and personal data'''
     can_view_chemreg = fields.BooleanField(default=True)
     can_view_assayreg = fields.BooleanField(default=True)
+    is_logged_in = fields.BooleanField(default=False)
 
     class Meta:
         filtering = {
@@ -298,17 +301,11 @@ class UserResource(ModelResource):
         # self).get_object_list(request).filter(pk=request.user.id)
         return super(UserResource, self).get_object_list(request)
 
-    def get_permissions():
-        """Placeholder for permissions service"""
 
-    # def get_invite_user(self, request, **kwargs):
-    #     deserialized = self.deserialize(request, request.body, format=request.META.get(
-    #         'CONTENT_TYPE', 'application/json'))
-    #     bundle = self.build_bundle(
-    #         data=dict_strip_unicode_keys(deserialized), request=request)
-    #     print(bundle.obj)
-    #     return self.create_response(request, bundle, response_class=http.HttpAccepted)
-
+    def dehydrate_is_logged_in(self, bundle):
+        if bundle.obj.id == bundle.request.user.id:
+            return True
+        return False
 
     def dehydrate_can_view_chemreg(self, bundle):
         '''The cbh_core_model.no_chemreg role in the Django admin is used to
@@ -334,6 +331,34 @@ class UserResource(ModelResource):
         return True
 
 #-------------------------------------------------------------------------
+
+class PermissionService(ModelResource):
+    """
+    Allows updating of user permissions - project owners can change who views, edits and owns their project
+    Data is retrieved using the codename of the 
+    """
+    users = fields.ToManyField(UserResource,attribute="user_set")
+    # groups = fields.ToManyField(GroupResource, attribute="group_set")
+    codename = fields.CharField(readonly=True)
+
+    def prepend_urls(self):
+        return [
+            url(r"^(?P<resource_name>%s)/(?P<codename>[\w\d_.-]+)/$" % self._meta.resource_name, self.wrap_view('dispatch_detail'), name="api_dispatch_detail"),
+        ]
+
+    class Meta:
+    
+        queryset = Permission.objects.all()
+        resource_name = 'cbh_permissions'
+        allowed_methods = ["get", "post", "patch", "put"]
+        authentication = SessionAuthentication()
+        authorization = Authorization()
+        detail_uri_name = 'codename'
+
+
+
+#-------------------------------------------------------------------------
+
 
 
 class Login( CSRFExemptMixin, FormView):
