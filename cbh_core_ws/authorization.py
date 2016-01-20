@@ -122,7 +122,7 @@ class ProjectListAuthorization(Authorization):
     def create_detail(self, object_list, bundle):
         '''Creating projects is allowed for all logged in users'''
         self.login_checks(bundle.request, bundle.obj.__class__)
-        return True
+        return bundle.request.user.has_perm("cbh_core_model.add_project")
         
 
     def update_list(self, object_list, bundle):

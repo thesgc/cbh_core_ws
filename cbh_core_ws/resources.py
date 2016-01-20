@@ -81,6 +81,7 @@ from django.contrib.auth.forms import PasswordResetForm, loader, get_current_sit
 from urllib import urlencode
 from django.core.mail import EmailMessage
 from django.contrib.auth.models import Permission
+import re
 
 class CBHDictField(fields.ApiField):
     """
@@ -278,6 +279,7 @@ class UserResource(ModelResource):
     can_view_chemreg = fields.BooleanField(default=True)
     can_view_assayreg = fields.BooleanField(default=True)
     is_logged_in = fields.BooleanField(default=False)
+    can_create_and_own_projects = fields.BooleanField(default=False)
 
     class Meta:
         filtering = {
@@ -298,6 +300,16 @@ class UserResource(ModelResource):
         # return super(UserResource,
         # self).get_object_list(request).filter(pk=request.user.id)
         return super(UserResource, self).get_object_list(request)
+
+
+    def dehydrate_can_create_and_own_projects(self, bundle):
+        """Internal users (denoted by their email pattern match) are allowed to add and own projects"""
+        if bundle.obj.is_superuser:
+            return True
+        perms = bundle.obj.get_all_permissions()
+        if "cbh_core_model.add_project" in perms:
+            return True
+        return False
 
 
     def dehydrate_is_logged_in(self, bundle):
