@@ -3,7 +3,7 @@ from tastypie.exceptions import Unauthorized
 import logging
 logger = logging.getLogger(__name__)
 logger_debug = logging.getLogger(__name__)
-from cbh_core_model.models import Project, get_all_project_ids_for_user_perms, get_all_project_ids_for_user, RESTRICTED, get_projects_where_fields_restricted
+from cbh_core_model.models import Project, get_all_project_ids_for_user_perms, get_all_project_ids_for_user, RESTRICTED, get_projects_where_fields_restricted, PERMISSION_CODENAME_SEPARATOR
 
 def viewer_projects(user):
     pids = get_all_project_ids_for_user(user, ["viewer","editor", "owner"])
@@ -16,6 +16,58 @@ def editor_projects(user):
 def owner_projects(user):
     pids = get_all_project_ids_for_user(user, ["owner"])
     return pids
+
+
+
+class ProjectPermissionAuthorization(Authorization):
+    def login_checks(self, request):
+
+        if not hasattr(request, 'user'):
+            print "no_logged_in_user"
+            raise Unauthorized("no_logged_in_user")
+        if not request.user.is_authenticated():
+            raise Unauthorized("no_logged_in")
+
+    def create_detail(self, object_list, bundle):
+        #We do not yet support creating of new permissions by API
+        return False
+
+
+    def update_list(self, object_list, bundle, for_list=True):
+        """
+        If any particular item cannot be updated then raise an exception
+        """
+        self.login_checks(bundle.request)
+        for permissionbundle in bundle.data["objects"]:
+            self.update_detail(object_list, permissionbundle)
+        return object_list
+
+    def update_detail(self, object_list, bundle, for_list=False):
+        if not for_list:
+            self.login_checks(bundle.request)
+        try:
+            entity_id, perm_code  = tuple(bundle.obj.codename.split(PERMISSION_CODENAME_SEPARATOR))
+            #check that the user changing the permissions for a project has owner rights on that project
+            
+
+            if entity_id.isdigit():
+                if int(entity_id) not in owner_projects(bundle.request.user):
+                    raise Unauthorized("You are not an owner of the project with id %s so you cannot change its permissions" % entity_id)
+                #If we are updating the owner of a certain project, check that every person in the list being added as an owner has the "add project" privilege
+                if perm_code == "owner":
+                    owner_user_is_in_new_list = False
+                    for userbun in bundle.data["users"]:
+                        if userbun.obj.id == bundle.request.user.id:
+                            owner_user_is_in_new_list = True
+                        if not userbun.obj.has_perm("cbh_core_model.add_project"):
+                            raise Unauthorized("You cannot add owner permissions to this user")
+                    if bundle.request.user.is_superuser is False:
+                        if owner_user_is_in_new_list is False:
+                            raise Unauthorized("You may not remove yourself as an owner of a project")
+
+        except ValueError:
+            raise Unauthorized("You are not permitted to update the permission with codename %s via the API")
+        return True
 
 
 

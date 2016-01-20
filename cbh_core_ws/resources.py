@@ -25,7 +25,7 @@ from cbh_core_model.models import ProjectType
 from cbh_core_model.models import SkinningConfig
 from cbh_core_model.models import Invitation
 
-from cbh_core_ws.authorization import ProjectListAuthorization, InviteAuthorization, viewer_projects
+from cbh_core_ws.authorization import ProjectListAuthorization, InviteAuthorization, viewer_projects, ProjectPermissionAuthorization
 from tastypie.authentication import SessionAuthentication
 from tastypie.paginator import Paginator
 from cbh_core_ws.serializers import CustomFieldsSerializer
@@ -342,7 +342,7 @@ class UserResource(ModelResource):
 
 #-------------------------------------------------------------------------
 
-class PermissionService(ModelResource):
+class ProjectPermissionResource(ModelResource):
     """
     Allows updating of user permissions - project owners can change who views, edits and owns their project
     Data is retrieved using the codename of the 
@@ -362,9 +362,41 @@ class PermissionService(ModelResource):
         resource_name = 'cbh_permissions'
         allowed_methods = ["get", "post", "patch", "put"]
         authentication = SessionAuthentication()
-        authorization = Authorization()
+        authorization = ProjectPermissionAuthorization()
         detail_uri_name = 'codename'
 
+
+
+    def save(self, bundle, skip_errors=False):
+        """Ensure that the m2m bundle is hydrated before continuing as this is needed for the authorization"""
+        if bundle.via_uri:
+            return bundle
+
+        self.is_valid(bundle)
+
+        if bundle.errors and not skip_errors:
+            raise ImmediateHttpResponse(response=self.error_response(bundle.request, bundle.errors))
+        m2m_bundle = self.hydrate_m2m(bundle)
+
+        # Check if they're authorized.
+        if bundle.obj.pk:
+            self.authorized_update_detail(self.get_object_list(bundle.request), m2m_bundle)
+        else:
+            self.authorized_create_detail(self.get_object_list(bundle.request), m2m_bundle)
+
+        # Save FKs just in case.
+        self.save_related(bundle)
+
+        # Save the main object.
+        obj_id = self.create_identifier(bundle.obj)
+
+        if obj_id not in bundle.objects_saved or bundle.obj._state.adding:
+            bundle.obj.save()
+            bundle.objects_saved.add(obj_id)
+
+        # Now pick up the M2M bits.
+        self.save_m2m(m2m_bundle)
+        return bundle
 
 
 #-------------------------------------------------------------------------
