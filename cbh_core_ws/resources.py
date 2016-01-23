@@ -496,7 +496,7 @@ class SkinningResource(ModelResource):
         queryset = SkinningConfig.objects.all()
         resource_name = 'cbh_skinning'
         #authorization = Authorization()
-        include_resource_uri = False
+        include_resource_uri = True
         allowed_methods = ['get', 'post', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
@@ -523,7 +523,7 @@ class CustomFieldConfigResource(ModelResource):
         queryset = CustomFieldConfig.objects.all()
         resource_name = 'cbh_custom_field_configs'
         #authorization = ProjectListAuthorization()
-        include_resource_uri = False
+        include_resource_uri = True
         allowed_methods = ['get', 'post', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
@@ -542,7 +542,7 @@ class DataTypeResource(ModelResource):
         queryset = DataType.objects.all()
         resource_name = 'cbh_data_types'
         authorization = Authorization()
-        include_resource_uri = False
+        include_resource_uri = True
         allowed_methods = ['get', 'post', 'patch', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
@@ -607,7 +607,7 @@ class InvitationResource(UserHydrate, ModelResource):
         queryset = Invitation.objects.all()
         resource_name = 'invitations'
         authorization = InviteAuthorization()
-        include_resource_uri = False
+        include_resource_uri = True
         allowed_methods = ['get', 'post', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
@@ -711,7 +711,7 @@ class CoreProjectResource(ModelResource):
         allowed_methods = ['get']
         resource_name = 'cbh_projects'
         authorization = ProjectListAuthorization()
-        include_resource_uri = False
+        include_resource_uri = True
         default_format = 'application/json'
         #serializer = Serializer()
         serializer = CustomFieldsSerializer()
