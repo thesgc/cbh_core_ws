@@ -82,6 +82,7 @@ from urllib import urlencode
 from django.core.mail import EmailMessage
 from django.contrib.auth.models import Permission
 import re
+from django_hstore import hstore
 
 class CBHDictField(fields.ApiField):
     """
@@ -91,12 +92,7 @@ class CBHDictField(fields.ApiField):
     help_text = "A dictionary of data. Ex: {'price': 26.73, 'name': 'Daniel'}"
 
     def convert(self, value):
-        if value is None:
-            return None
-        try:
-            return dict(value)
-        except ValueError, e:
-            return {key: v for key,v in value.items()}
+        return hstore.SerializedDictionaryField()._deserialize_dict(value)
         
 
 
