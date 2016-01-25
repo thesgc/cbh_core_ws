@@ -68,7 +68,6 @@ except AttributeError:
 from tastypie.authentication import SessionAuthentication
 
 from django.contrib.auth import get_user_model
-User = get_user_model()
 import inflection
 import six
 import importlib
@@ -92,7 +91,10 @@ class CBHDictField(fields.ApiField):
     help_text = "A dictionary of data. Ex: {'price': 26.73, 'name': 'Daniel'}"
 
     def convert(self, value):
-        return hstore.SerializedDictionaryField()._deserialize_dict(value)
+        try:
+            return dict(value)
+        except ValueError:
+            return hstore.SerializedDictionaryField()._deserialize_dict(value)
         
 
 
@@ -100,6 +102,8 @@ class CBHDictField(fields.ApiField):
 
 class UserHydrate(object):
     def hydrate_created_by(self, bundle):
+        User = get_user_model()
+
         if bundle.obj.id:
             pass
         else:
@@ -270,71 +274,6 @@ class Index(TemplateView):
         return self.render_to_response(context)
 
 
-class UserResource(ModelResource):
-    '''Displays information about the User's privileges and personal data'''
-    can_view_chemreg = fields.BooleanField(default=True)
-    can_view_assayreg = fields.BooleanField(default=True)
-    is_logged_in = fields.BooleanField(default=False)
-    can_create_and_own_projects = fields.BooleanField(default=False)
-
-    class Meta:
-        filtering = {
-            "username": ALL_WITH_RELATIONS
-        }
-        queryset = get_user_model().objects.all()
-        resource_name = 'users'
-        allowed_methods = ["get", "post"]
-        excludes = ['email', 'password', 'is_active']
-        authentication = SessionAuthentication()
-        authorization = Authorization()
-
-
-    def apply_authorization_limits(self, request, object_list):
-        return object_list.get(pk=request.user.id)
-
-    def get_object_list(self, request):
-        # return super(UserResource,
-        # self).get_object_list(request).filter(pk=request.user.id)
-        return super(UserResource, self).get_object_list(request)
-
-
-    def dehydrate_can_create_and_own_projects(self, bundle):
-        """Internal users (denoted by their email pattern match) are allowed to add and own projects"""
-        if bundle.obj.is_superuser:
-            return True
-        perms = bundle.obj.get_all_permissions()
-        if "cbh_core_model.add_project" in perms:
-            return True
-        return False
-
-
-    def dehydrate_is_logged_in(self, bundle):
-        if bundle.obj.id == bundle.request.user.id:
-            return True
-        return False
-
-    def dehydrate_can_view_chemreg(self, bundle):
-        '''The cbh_core_model.no_chemreg role in the Django admin is used to
-        deny access to chemreg. As superusers have all permissions  by 
-        default they would be denied access therefore we check for superuser status and allow access'''
-        if bundle.obj.is_superuser:
-            return True
-        perms = bundle.obj.get_all_permissions()
-        if "cbh_core_model.no_chemreg" in perms:
-            return False
-        return True
-
-    def dehydrate_can_view_assayreg(self, bundle):
-        '''The cbh_core_model.no_assayreg role in the Django admin is used to
-        deny access to assayreg. As superusers have all permissions  by 
-        default they would be denied access therefore we check for superuser status and allow access'''
-
-        if bundle.obj.is_superuser:
-            return True
-        perms = bundle.obj.get_all_permissions()
-        if "cbh_core_model.no_assayreg" in perms:
-            return False
-        return True
 
 #-------------------------------------------------------------------------
 
@@ -343,7 +282,7 @@ class ProjectPermissionResource(ModelResource):
     Allows updating of user permissions - project owners can change who views, edits and owns their project
     Data is retrieved using the codename of the 
     """
-    users = fields.ToManyField(UserResource,attribute="user_set")
+    users = fields.ToManyField("cbh_core_ws.resources.UserResource",attribute="user_set")
     # groups = fields.ToManyField(GroupResource, attribute="group_set")
     codename = fields.CharField(readonly=True)
 
@@ -693,6 +632,73 @@ class InvitationResource(UserHydrate, ModelResource):
         return rc
 
 
+from django.contrib.auth.models import User
+
+class UserResource(ModelResource):
+    '''Displays information about the User's privileges and personal data'''
+    can_view_chemreg = fields.BooleanField(default=True)
+    can_view_assayreg = fields.BooleanField(default=True)
+    is_logged_in = fields.BooleanField(default=False)
+    can_create_and_own_projects = fields.BooleanField(default=False)
+
+    class Meta:
+        filtering = {
+            "username": ALL_WITH_RELATIONS
+        }
+        queryset = User.objects.all()
+        resource_name = 'users'
+        allowed_methods = ["get", "post"]
+        excludes = ['email', 'password', 'is_active']
+        authentication = SessionAuthentication()
+        authorization = Authorization()
+
+
+    def apply_authorization_limits(self, request, object_list):
+        return object_list.get(pk=request.user.id)
+
+    def get_object_list(self, request):
+        # return super(UserResource,
+        # self).get_object_list(request).filter(pk=request.user.id)
+        return super(UserResource, self).get_object_list(request)
+
+
+    def dehydrate_can_create_and_own_projects(self, bundle):
+        """Internal users (denoted by their email pattern match) are allowed to add and own projects"""
+        if bundle.obj.is_superuser:
+            return True
+        perms = bundle.obj.get_all_permissions()
+        if "cbh_core_model.add_project" in perms:
+            return True
+        return False
+
+
+    def dehydrate_is_logged_in(self, bundle):
+        if bundle.obj.id == bundle.request.user.id:
+            return True
+        return False
+
+    def dehydrate_can_view_chemreg(self, bundle):
+        '''The cbh_core_model.no_chemreg role in the Django admin is used to
+        deny access to chemreg. As superusers have all permissions  by 
+        default they would be denied access therefore we check for superuser status and allow access'''
+        if bundle.obj.is_superuser:
+            return True
+        perms = bundle.obj.get_all_permissions()
+        if "cbh_core_model.no_chemreg" in perms:
+            return False
+        return True
+
+    def dehydrate_can_view_assayreg(self, bundle):
+        '''The cbh_core_model.no_assayreg role in the Django admin is used to
+        deny access to assayreg. As superusers have all permissions  by 
+        default they would be denied access therefore we check for superuser status and allow access'''
+
+        if bundle.obj.is_superuser:
+            return True
+        perms = bundle.obj.get_all_permissions()
+        if "cbh_core_model.no_assayreg" in perms:
+            return False
+        return True
 
 class CoreProjectResource(ModelResource):
     project_type = fields.ForeignKey(
