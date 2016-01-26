@@ -351,7 +351,6 @@ class Login( CSRFExemptMixin, FormView):
             form=self.get_form(self.get_form_class()))
         redirect_to = settings.LOGIN_REDIRECT_URL
         '''Borrowed from django base detail view'''
-
         if "django_webauth" in settings.INSTALLED_APPS:
             context["webauth_login"] = True
             username = request.META.get('REMOTE_USER', None)
