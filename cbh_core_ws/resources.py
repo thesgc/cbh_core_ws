@@ -5,7 +5,7 @@ logger = logging.getLogger(__name__)
 
 
 from django.test import RequestFactory
-from tastypie.resources import ALL_WITH_RELATIONS
+from tastypie.resources import ALL_WITH_RELATIONS, ALL
 from tastypie.resources import ModelResource
 from tastypie.exceptions import BadRequest
 from django.conf import settings
@@ -494,7 +494,9 @@ class ProjectTypeResource(ModelResource):
         allowed_methods = ['get', 'post', 'patch', 'put']
         default_format = 'application/json'
         authentication = SessionAuthentication()
-
+        filtering = {
+            "saved_search_project_type": ALL
+        }
 
 class CustomFieldConfigResource(ModelResource):
 
