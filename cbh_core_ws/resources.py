@@ -25,6 +25,7 @@ from cbh_core_model.models import ProjectType
 from cbh_core_model.models import SkinningConfig
 from cbh_core_model.models import Invitation
 
+
 from cbh_core_ws.authorization import ProjectListAuthorization, InviteAuthorization, viewer_projects, ProjectPermissionAuthorization
 from tastypie.authentication import SessionAuthentication
 from tastypie.paginator import Paginator
@@ -47,6 +48,7 @@ from tastypie.authorization import Authorization
 from tastypie import http
 from django.contrib.auth.views import password_reset
 from django.db import IntegrityError
+from django.db.models import get_model
 # If ``csrf_exempt`` isn't present, stub it.
 try:
     from django.views.decorators.csrf import csrf_exempt
@@ -435,9 +437,54 @@ class SkinningResource(ModelResource):
         default_format = 'application/json'
         authentication = SessionAuthentication()
 
+
+
+class TemplateProjectFieldResource(ModelResource):
+
+    """Provides the schema information about a field that is required by front end apps"""
+ 
+    class Meta:
+        queryset = get_model("cbh_core_model","PinnedCustomField").objects.all()
+        always_return_data = True
+        resource_name = 'cbh_template_fields'
+        include_resource_uri = False
+        allowed_methods = ['get']
+        default_format = 'application/json'
+        authentication = SessionAuthentication()
+        authorization = Authorization()
+
+    def dehydrate_id(self, bundle):
+        return None
+
+
+
+def get_field_list(project_type_bundle):
+    if project_type_bundle.obj.saved_search_project_type:
+        return project_type_bundle.obj.SAVED_SEARCH_TEMPLATE
+    else:
+        for field in  project_type_bundle.data["custom_field_config_template"]:
+            field.data["id"] = None
+        return [field.data for field in project_type_bundle.data["custom_field_config_template"]]
+
+
+
 class ProjectTypeResource(ModelResource):
 
+    custom_field_config_template = fields.ToManyField("cbh_core_ws.resources.TemplateProjectFieldResource", attribute=lambda bundle: get_model("cbh_core_model","PinnedCustomField").objects.filter(custom_field_config_id=bundle.obj.custom_field_config_template_id) ,  full=True, readonly=True, null=True)
     '''Resource for Project Type, specifies whether this is a chemical/inventory instance etc '''
+    def alter_list_data_to_serialize(self, request, data):
+        for bun in data["objects"]:
+            bun.data["project_template"] =  {
+                "project_type": bun.data["resource_uri"],
+                    "custom_field_config": {
+                        "project_data_fields": get_field_list(bun),
+                        "name": ""
+                    },
+                    "name": ""
+                }
+        return data
+
+
     class Meta:
         always_return_data = True
         queryset = ProjectType.objects.all()
