@@ -257,7 +257,7 @@ class ProjectAuthorization(Authorization):
     def read_detail(self, object_list, bundle):
 
         self.login_checks(bundle.request, bundle.obj.__class__)
-        pids = viewer_projects(request.user)
+        pids = viewer_projects(bundle.request.user)
         if bundle.obj.project.id in pids:
             return True
         else:
