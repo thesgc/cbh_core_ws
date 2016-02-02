@@ -469,9 +469,10 @@ def get_field_list(project_type_bundle):
 
 
 class ProjectTypeResource(ModelResource):
-
-    custom_field_config_template = fields.ToManyField("cbh_core_ws.resources.TemplateProjectFieldResource", attribute=lambda bundle: get_model("cbh_core_model","PinnedCustomField").objects.filter(custom_field_config_id=bundle.obj.custom_field_config_template_id) ,  full=True, readonly=True, null=True)
     '''Resource for Project Type, specifies whether this is a chemical/inventory instance etc '''
+    copy_action_name = fields.CharField(default="Clone")
+    custom_field_config_template = fields.ToManyField("cbh_core_ws.resources.TemplateProjectFieldResource", attribute=lambda bundle: get_model("cbh_core_model","PinnedCustomField").objects.filter(custom_field_config_id=bundle.obj.custom_field_config_template_id) ,  full=True, readonly=True, null=True)
+   
     def alter_list_data_to_serialize(self, request, data):
         for bun in data["objects"]:
             bun.data["project_template"] =  {
@@ -483,6 +484,13 @@ class ProjectTypeResource(ModelResource):
                     "name": ""
                 }
         return data
+
+    def dehydrate_copy_action_name(self, bundle):
+        if bundle.obj.show_compounds:
+            return "Clone / Add Structure"
+        else:
+            return "Clone Item"
+
 
 
     class Meta:
