@@ -472,7 +472,8 @@ class ProjectTypeResource(ModelResource):
     '''Resource for Project Type, specifies whether this is a chemical/inventory instance etc '''
     copy_action_name = fields.CharField(default="Clone")
     custom_field_config_template = fields.ToManyField("cbh_core_ws.resources.TemplateProjectFieldResource", attribute=lambda bundle: get_model("cbh_core_model","PinnedCustomField").objects.filter(custom_field_config_id=bundle.obj.custom_field_config_template_id) ,  full=True, readonly=True, null=True)
-   
+    project_template = fields.DictField(default={})
+
     def alter_list_data_to_serialize(self, request, data):
         for bun in data["objects"]:
             bun.data["project_template"] =  {
