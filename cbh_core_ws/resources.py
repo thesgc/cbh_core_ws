@@ -700,6 +700,7 @@ class UserResource(ModelResource):
     can_view_assayreg = fields.BooleanField(default=True)
     is_logged_in = fields.BooleanField(default=False)
     can_create_and_own_projects = fields.BooleanField(default=False)
+    display_name = fields.CharField(default="")
 
     class Meta:
         filtering = {
@@ -721,6 +722,12 @@ class UserResource(ModelResource):
         # self).get_object_list(request).filter(pk=request.user.id)
         return super(UserResource, self).get_object_list(request)
 
+
+    def dehydrate_display_name(self, bundle):
+        if bundle.obj.first_name:
+            return "%s %s" % (bundle.obj.first_name, bundle.obj.last_name)
+        else:
+            return bundle.obj.username
 
     def dehydrate_can_create_and_own_projects(self, bundle):
         """Internal users (denoted by their email pattern match) are allowed to add and own projects"""
