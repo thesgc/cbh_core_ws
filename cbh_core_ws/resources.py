@@ -461,6 +461,8 @@ class TemplateProjectFieldResource(ModelResource):
 def get_field_list(project_type_bundle):
     if project_type_bundle.obj.saved_search_project_type:
         return project_type_bundle.obj.SAVED_SEARCH_TEMPLATE
+    #elif project_type_bundle.obj.plate_map_project_type:
+    #    return project_type_bundle.obj.PLATE MAP_TEMPLATE
     else:
         for field in  project_type_bundle.data["custom_field_config_template"]:
             field.data["id"] = None
@@ -504,7 +506,8 @@ class ProjectTypeResource(ModelResource):
         default_format = 'application/json'
         authentication = SessionAuthentication()
         filtering = {
-            "saved_search_project_type": ALL
+            "saved_search_project_type": ALL,
+            "plate_map_project_type": ALL
         }
 
 class CustomFieldConfigResource(ModelResource):
