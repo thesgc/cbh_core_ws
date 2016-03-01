@@ -40,15 +40,19 @@ class CustomFieldXLSSerializer(Serializer):
             exp_json = None
 
         if exp_json is None:
-
-            exp_json = data.data["project_data_fields"]
-            exp_json = [field.data for field in exp_json]
+            try:
+                exp_json = data.data["project_data_fields"]
+                exp_json = [field.data for field in exp_json]
+            except AttributeError:
+                print data
+                raise ImmediateHttpResponse(BadRequest("Data not preformatted correctly for the Serializer: %s" % json.dumps(data)))
 
         cleaned_data = []
 
         # need to manipulate the dataset which is used to apply to dataframe
         # date fields do not have allowed values but do have specified data
         # ranges
+        exp_json = [{"name": "SMILES", "field_type": "text", "placeholder": "", "allowed_values": "", "description": "A SMILES line notation for the molecule that you are trying to upload. If you are not uploading molecules, ignore this field."}] + exp_json
         for field in exp_json:
 
             # is it a date field? add the date ranges to the allowed values
@@ -93,7 +97,7 @@ class CustomFieldXLSSerializer(Serializer):
 
         writer = pd.ExcelWriter('temp.xlsx', engine='xlsxwriter')
         writer.book.filename = output
-        df2 = pd.DataFrame(data=np.zeros((0, len(exp_json))), columns=[
+        df2 = pd.DataFrame(data=np.zeros((0, len(exp_json) )), columns=[
                            field["name"] for field in exp_json])
         df2.to_excel(writer, sheet_name='Sheet1', index=False)
 
